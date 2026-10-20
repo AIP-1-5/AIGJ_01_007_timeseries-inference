@@ -1,0 +1,38 @@
+# 비밀값
+.env
+.env.*
+!.env.example
+
+# 데이터·DB (보드의 /srv/team5에 둔다)
+data/
+*.db
+*.sqlite
+*.sqlite3
+*.parquet
+
+# 모델 파일
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.engine
+*.plan
+*.trt
+
+# 로그
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# 개인 설정
+.claude/settings.local.json
+.DS_Store
+.vscode/
+.idea/
