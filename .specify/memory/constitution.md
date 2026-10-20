@@ -1,14 +1,14 @@
 # 시계열 데이터 추론 실습 Constitution
 
 이 문서는 과제 진행 중 모든 spec·plan·tasks·구현이 지켜야 하는 원칙이다.
-과제의 원문은 `docs/assignment.md`이고, 원칙은 그 문서의 확인 기준과 평가 기준(§5)에서 나왔다.
+과제의 원문은 팀 Private 저장소 `AIP-1-5/docs`의 `assignment.md`(보통 `../docs/assignment.md`)이고, 원칙은 그 문서의 확인 기준과 평가 기준(§5)에서 나왔다.
 
 ## Core Principles
 
 ### I. 확인 기준이 곧 완료 조건
 
 - 과제 하나를 spec 하나로 다룬다. 한 spec에 여러 과제를 섞지 않는다.
-- 각 spec은 `docs/assignment.md`에 있는 해당 과제의 "확인 기준"을 빠짐없이 완료 조건(acceptance
+- 각 spec은 `assignment.md`에 있는 해당 과제의 "확인 기준"을 빠짐없이 완료 조건(acceptance
   criteria)으로 옮긴다. 수치 기준(예: 커버율 95%, 기준선 대비 30%)은 숫자 그대로 적는다.
 - 확인 기준을 하나라도 충족하지 못하면 그 과제는 완료가 아니다. 미충족이면 숫자와 원인을 함께 기록한다.
 - 각 spec은 해당 과제의 "산출물"을 tasks에 포함한다.
@@ -99,4 +99,4 @@
   원칙·섹션을 추가하거나 크게 넓히면 MINOR, 문구 수정은 PATCH.
 - 작업 중 참고할 실행 정보(보드 접속, 폴더, 명령)는 `CLAUDE.md`에 둔다.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-20 | **Last Amended**: 2026-10-20
+**Version**: 1.0.1 | **Ratified**: 2026-10-20 | **Last Amended**: 2026-10-20

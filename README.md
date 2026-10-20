@@ -6,7 +6,6 @@
 
 | 경로 | 내용 |
 |---|---|
-| `docs/assignment.md` | 과제 안내 원문 |
 | `docs/reports/` | 과제별 결과 보고 |
 | `CLAUDE.md` | Claude Code 작업 규칙, 장비 정보 |
 | `.specify/memory/constitution.md` | Spec Kit 원칙 (모든 과제가 지킬 규칙) |
@@ -15,16 +14,20 @@
 
 ## 시작하기
 
+과제 안내 원문은 팀 Private 저장소 `AIP-1-5/docs`에 있다. 두 저장소를 나란히 clone한다.
+
 ```bash
-git clone <이 저장소>
+mkdir -p ~/work && cd ~/work
+git clone git@github.com:AIP-1-5/docs.git
+git clone git@github.com:AIP-1-5/AIGJ_01_012_timeseries-inference.git
 cd AIGJ_01_012_timeseries-inference
-cp .env.example .env      # 값은 팀 단톡방에서 받는다
-claude                     # Claude Code 실행
+cp .env.example .env            # 값은 팀 단톡방에서 받는다
+claude --add-dir ../docs        # 과제 문서도 읽을 수 있게 Claude Code 실행
 ```
 
 과제 진행 순서 (과제 하나씩):
 
-1. `/speckit-specify` — `docs/assignment.md`의 과제 N 부분을 기준으로 spec 작성
+1. `/speckit-specify` — `../docs/assignment.md`의 과제 N 부분을 기준으로 spec 작성
 2. `/speckit-plan` → `/speckit-tasks` — 계획과 할 일 목록. 여기서 멈추고 검토
 3. `/speckit-implement` — 구현
 4. `/speckit-converge` — 확인 기준을 충족할 때까지 반복
