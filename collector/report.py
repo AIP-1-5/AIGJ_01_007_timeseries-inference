@@ -114,20 +114,27 @@ def format_status(d: dict) -> str:
 KST = timezone(timedelta(hours=9))
 EVENT_KINDS = ("start", "stop", "connect", "disconnect", "connect_refused", "queue_drop", "write_error",
                "parse_error", "unmapped_key", "join", "epoch_bump")
-PENDING_NOTE = "보류: 간격 {iv}s 센서만 있음. 판정 기준 10/22 강사 확인 대기(spec Assumptions)"
+INTERVAL_NOTE = ("간격 {iv}s 센서만 있어 1분 칸 커버율은 구조적으로 낮다. 센서 전송 간격 기준 커버율로 판정한다"
+                 "(spec Assumptions, decisions Q2b)")
 
 
 def _kst(ts: str) -> str:
     return cv.parse_iso(ts).astimezone(KST).strftime("%m-%d %H:%M")
 
 
-def _judge(c: dict, cfg: Config) -> str:
-    """판정 대상 항목의 AC-3 판정. 긴 간격 센서만 있는 공간·항목은 보류."""
-    if c["item"] not in cfg.report.judged_items:
-        return ""
+def _judge(c: dict, cfg: Config, rates: dict) -> tuple[str, float]:
+    """판정 대상 항목의 AC-3 판정과 판정에 쓴 커버율.
+
+    긴 간격 센서(60초 초과)만 있는 공간·항목은 센서 간격 기준 커버율로 판정한다. 1분 칸 판정과 같은 뜻이
+    되도록 "그 공간 센서 중 하나라도" 채우면 되는 것으로 보고, 센서별 간격 커버율 중 가장 큰 값을 쓴다.
+    """
+    target = cfg.report.coverage_target
     if c["intervals"] and min(c["intervals"]) > 60:
-        return "보류"
-    return "통과" if c["coverage"] >= cfg.report.coverage_target else "미통과"
+        covs = [rates[d]["interval_coverage"] for d in c["devices"]
+                if d in rates and rates[d]["interval_coverage"] is not None]
+        cov = max(covs) if covs else 0.0
+        return ("통과(간격 기준)" if cov >= target else "미통과(간격 기준)"), cov
+    return ("통과" if c["coverage"] >= target else "미통과"), c["coverage"]
 
 
 def report_data(conn: sqlite3.Connection, cfg: Config, start: datetime, end: datetime,
@@ -183,23 +190,23 @@ def format_report(d: dict, cfg: Config, meta: dict) -> str:
             f"1분 칸마다 그 공간의 센서 하나라도 값이 있으면 채워진 칸이다. 판정 항목은 {', '.join(judged)}, "
             f"목표 {target:.0%}. 판정 항목이 없는 공간(예: 사무실 밖의 co2)은 해당 없음.", "",
             "| 공간 | 항목 | 건수 | 채워진 칸/전체 | 1분 커버율 | 센서 간격 | 판정 |", "|---|---|---|---|---|---|---|"]
-    tally = {"통과": 0, "미통과": 0, "보류": 0}
-    pending: dict[str, list[str]] = {}
+    tally = {"통과": 0, "미통과": 0}
+    by_interval: dict[str, list[str]] = {}
     for c in (c for c in d["locations"] if c["item"] in judged):
-        verdict = _judge(c, cfg)
-        tally[verdict] += 1
+        verdict, _ = _judge(c, cfg, rates)
+        tally["통과" if verdict.startswith("통과") else "미통과"] += 1
         iv = ", ".join(f"{i}s" for i in c["intervals"]) or "-"
-        mark = f"**{verdict}**" if verdict == "미통과" else verdict
+        mark = f"**{verdict}**" if verdict.startswith("미통과") else verdict
         out.append(f"| {c['location']} | {c['item']} | {c['count']} | {c['filled']}/{c['total']} | "
                    f"{_pct(c['coverage'])} | {iv} | {mark} |")
-        if verdict == "보류":
-            pending.setdefault(c["location"], []).append(c["item"])
-    out += ["", f"판정 대상 {sum(tally.values())}개: 통과 {tally['통과']}, 미통과 {tally['미통과']}, 보류 {tally['보류']}."]
-    for loc, items in pending.items():
+        if verdict.endswith("(간격 기준)"):
+            by_interval.setdefault(c["location"], []).append(c["item"])
+    out += ["", f"판정 대상 {sum(tally.values())}개: 통과 {tally['통과']}, 미통과 {tally['미통과']}."]
+    for loc, items in by_interval.items():
         c = next(x for x in d["locations"] if x["location"] == loc and x["item"] == items[0])
         parts = [f"{dev[-4:]} 간격 기준 커버율 {_pct(rates[dev]['interval_coverage'])}, 수신률 {_pct(rates[dev]['rate'])}"
                  for dev in c["devices"] if dev in rates]
-        out += ["", f"- {loc} {', '.join(items)}: {PENDING_NOTE.format(iv=min(c['intervals']))}. {'; '.join(parts)}"]
+        out += ["", f"- {loc} {', '.join(items)}: {INTERVAL_NOTE.format(iv=min(c['intervals']))}. {'; '.join(parts)}"]
     others = [c for c in d["locations"] if c["item"] not in judged]
     if others:
         out += ["", "판정 외 항목(참고): " + ", ".join(
@@ -222,7 +229,10 @@ def format_report(d: dict, cfg: Config, meta: dict) -> str:
     out.append("")
 
     # 4. 결측 구간: 같은 공간·시각·원인은 항목을 묶어 한 줄로
-    listed = [g for g in d["gaps"] if g["item"] in judged and g["cause"]]
+    classified = [g for g in d["gaps"] if g["item"] in judged and g["cause"]]
+    # 전송 간격(fCnt가 이어짐)은 손실이 아니다. 10분 센서는 10분마다 생기므로 표에서 빼고 건수만 적는다
+    listed = [g for g in classified if g["cause"] != "no_transmission"]
+    no_tx = [g for g in classified if g["cause"] == "no_transmission"]
     merged: dict[tuple, list[str]] = {}
     for g in listed:
         merged.setdefault((g["location"], g["start"], g["end"], g["minutes"], g["cause"], g["evidence"]),
@@ -240,6 +250,12 @@ def format_report(d: dict, cfg: Config, meta: dict) -> str:
             f"{cv.CAUSES[k]} {len(v)}건·{sum(v)}분" for k, v in sorted(by_cause.items()))]
     else:
         out.append("없음.")
+    if no_tx:
+        per_loc: dict[str, int] = {}
+        for g in no_tx:
+            per_loc[g["location"]] = per_loc.get(g["location"], 0) + 1
+        out += ["", "전송 간격(센서가 그 사이 보내지 않음, fCnt 이어짐 — 손실 아님)이라 표에서 뺀 구간(공간·항목 단위): "
+                + ", ".join(f"{loc} {n}건" for loc, n in sorted(per_loc.items()))]
     short: dict[tuple[str, str], int] = {}
     for g in d["gaps"]:
         if g["item"] in judged and not g["cause"]:
@@ -268,7 +284,7 @@ def format_report(d: dict, cfg: Config, meta: dict) -> str:
             "> 자동으로 채우지 않는다. 숫자를 보고 사람이 쓴다.", "",
             "- **95% 미만 공간·항목과 이유**: ",
             "- **결측 구간별 원인 확인**: ",
-            "- **보류 항목(긴 간격 센서) 판단**: ",
+            "- **긴 간격 센서(간격 기준 판정) 판단**: ",
             "- **그래서 무엇을 해야 하나**: ",
             "- **생각해 볼 점 1: 측정 시각을 무엇으로 정했나** (research R1): ",
             "- **생각해 볼 점 2: 수집과 학습이 같은 저장소를 쓰면** (research R5): ", ""]
