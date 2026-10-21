@@ -83,7 +83,7 @@ description: "과제 1 데이터 수집 체계 구현 작업 목록"
 - [X] T025 [US2] `deploy/install-service.sh`를 만든다(Claude는 만들기와 `--print` 확인까지만, sudo 실행은 사용자): `--print`면 채운 유닛을 출력만 한다. 그 밖에는 현재 사용자·저장소 경로로 틀을 채워 `/etc/systemd/system/tsinfer-collector-<사용자>.service`에 설치하고, `daemon-reload` → `enable --now` → `systemctl status`를 실행한다. `.env`·`.venv`가 없으면 중단하고 안내한다. 다시 실행해도 안전하다(멱등)
 - [ ] ~~T026~~ (범위 밖, 2026-10-21) 로컬 브로커 시험 도구를 만든다: `tests/broker/collector-local.toml`(localhost:1883, 시험용 DB `~/data/tsinfer/test-local.db`), `tests/broker/publisher.py`(fixture 메시지를 5초마다 fCnt +1, nsTime=현재 시각으로 바꿔 `application/test/device/<devEui>/event/up`에 발행, 브로커가 꺼져 있으면 재시도), `tests/broker/restart_test.sh N`(N회 `sudo systemctl stop mosquitto` → 30초 → `start`, start 시각과 시험 DB의 다음 `received_at` 차이를 초로 출력)
 - [ ] ~~T027~~ (범위 밖, 2026-10-21. 명령은 quickstart 4b, uid yj만 차단) `tests/broker/block_1883.sh SEC`를 만든다: `sudo iptables -I OUTPUT -p tcp --dport 1883 -j REJECT` → SEC초 대기 → 같은 규칙 삭제(`trap`으로 중단 시에도 삭제) → 해제 시각과 운영 DB의 다음 `received_at` 차이를 출력한다. 와이파이 전체를 끊지 않는다(Tailscale SSH 유지)
-- [ ] T028 [US2] **[사용자]** 보드 B에서 서비스를 설치하고(`sudo deploy/install-service.sh`) `sudo systemctl kill -s KILL tsinfer-collector-yj`로 자동 재시작을 확인한다
+- [x] T028 [US2] **[사용자]** 보드 B에서 서비스를 설치하고(`sudo deploy/install-service.sh`) `sudo systemctl kill -s KILL tsinfer-collector-yj`로 자동 재시작을 확인한다
 - [ ] T029 [US2] **[사용자]** AC-1 시험(quickstart 4a·4b 명령, iptables는 `-m owner --uid-owner yj`): `sudo apt install mosquitto` 뒤 quickstart 4a(재시작 3회)와 4b(120초 차단)를 실행하고, 회차별 초를 `docs/reports/001-data-collection/fault-tests.md`에 측정 조건(보드, 전력 모드, 날짜, 커밋)과 함께 기록한다. 60초 이상인 회차가 있으면 원인과 함께 미통과로 적는다
 - [ ] T030 [US2] **[사용자]** AC-2 시험: 팀에 알린 뒤 **보드 B만** `sudo reboot`를 하고 로그인 없이 대기한다. `journalctl -b -u tsinfer-collector-yj`의 시작 시각, 부팅 시각, DB의 첫 새 행 시각을 `docs/reports/001-data-collection/fault-tests.md`에 기록한다
 
@@ -97,10 +97,10 @@ description: "과제 1 데이터 수집 체계 구현 작업 목록"
 
 **Independent Test**: 손으로 만든 작은 DB에서 커버율·수신률·결측 원인이 손계산과 같다. 24시간 실데이터로 보고서가 나온다(quickstart 5)
 
-- [ ] T031 [P] [US3] `tests/unit/test_coverage.py`: 합성 행으로 (a) 1분 칸 커버율(공간 안 센서 둘 중 하나만 있어도 채워짐, [start, end) 경계), (b) 센서 수신률(epoch 두 개에 걸친 기대 수 = epoch별 `max−min+1`의 합, 건너뜀 수), (c) 간격 기준 커버율(interval_s=600), (d) 결측 구간 묶기와 `gap_list_min_minutes=3` 미만은 건수만, (e) 원인 4분류(heartbeat 공백 >90초 또는 disconnect 구간과 겹침 → 수집기 중단/연결 끊김, fCnt 건너뜀 → 센서·무선 손실, fCnt는 이어지는데 행 없음 → 수집기 쪽 손실, 근거 없음 → 원인 미상), (f) 끊김 경고(마지막 수신이 간격의 2배 초과, 간격 모르면 5분)를 테스트한다
-- [ ] T032 [US3] `collector/coverage.py`를 구현한다: 읽기 전용 연결로 `coverage_by_location_item(start, end)`, `device_rates(start, end)`(관측 간격 중앙값 포함, 설정 interval_s 우선), `gaps(start, end)`(원인과 근거 문자열), `collector_downtime(start, end)`(heartbeat·start·stop·disconnect·connect 이벤트로 계산)를 만든다. 1분 칸은 `substr(measured_at,1,16)`으로 한다(research R8)
-- [ ] T033 [US3] `collector/report.py`와 `__main__.py`에 `status` 명령을 구현한다(contracts/cli.md 출력 형식, `--hours`, `--json`, 수집기 마지막 heartbeat·연결, 끊김 경고)
-- [ ] T034 [US3] `collector/report.py`와 `__main__.py`에 `report` 명령을 구현한다: contracts/cli.md의 보고서 구성 1~6을 Markdown으로 쓴다. 측정 조건(기간, 실데이터, 보드 hostname, 서비스 이름, 시각 기준 nsTime, `git rev-parse HEAD`, 설정 파일 해시), `report.judged_items`(co2·temperature·humidity)의 95% 판정, 회의실처럼 간격이 긴 센서만 있는 공간·항목에는 "간격 기준 커버율·수신률 병기, 판정 기준 10/22 확인 대기" 주석을 단다. "해석" 절은 빈 틀로 둔다
+- [x] T031 [P] [US3] `tests/unit/test_coverage.py`: 합성 행으로 (a) 1분 칸 커버율(공간 안 센서 둘 중 하나만 있어도 채워짐, [start, end) 경계), (b) 센서 수신률(epoch 두 개에 걸친 기대 수 = epoch별 `max−min+1`의 합, 건너뜀 수), (c) 간격 기준 커버율(interval_s=600), (d) 결측 구간 묶기와 `gap_list_min_minutes=3` 미만은 건수만, (e) 원인 6분류(decisions R8b: 수집기 중단, 연결 끊김, queue_drop·write_error → 수집기 쪽 손실, fCnt 건너뜀·재가입 → 센서·무선 손실, fCnt 이어짐 → 전송 간격, 근거 없음 → 원인 미상), (f) 끊김 경고(마지막 수신이 간격의 2배 초과, 간격 모르면 5분)를 테스트한다
+- [x] T032 [US3] `collector/coverage.py`를 구현한다: 읽기 전용 연결로 `coverage_by_location_item(start, end)`, `device_rates(start, end)`(관측 간격 중앙값 포함, 설정 interval_s 우선), `gaps(start, end)`(원인과 근거 문자열), `collector_downtime(start, end)`(heartbeat·start·stop·disconnect·connect 이벤트로 계산)를 만든다. 1분 칸은 `substr(measured_at,1,16)`으로 한다(research R8)
+- [x] T033 [US3] `collector/report.py`와 `__main__.py`에 `status` 명령을 구현한다(contracts/cli.md 출력 형식, `--hours`, `--json`, 수집기 마지막 heartbeat·연결, 끊김 경고)
+- [x] T034 [US3] `collector/report.py`와 `__main__.py`에 `report` 명령을 구현한다: contracts/cli.md의 보고서 구성 1~6을 Markdown으로 쓴다. 측정 조건(기간, 실데이터, 보드 hostname, 서비스 이름, 시각 기준 nsTime, `git rev-parse HEAD`, 설정 파일 해시), `report.judged_items`(co2·temperature·humidity)의 95% 판정, 회의실처럼 간격이 긴 센서만 있는 공간·항목에는 "간격 기준 커버율·수신률 병기, 판정 기준 10/22 확인 대기" 주석을 단다. "해석" 절은 빈 틀로 둔다
 - [ ] T035 [US3] 서비스가 24시간 이상 돈 뒤 `report`로 `docs/reports/001-data-collection/coverage-<날짜>.md`를 만든다. 95% 미만 공간·항목과 결측 구간마다 원인을 확인해 해석 절에 쓴다(왜 그렇게 나왔는가, 무엇을 해야 하는가). "생각해 볼 점" 두 질문(측정 시각 기준, 수집·학습 동시 접근)에 research R1·R5를 근거로 답한다
 
 **Checkpoint**: AC-3 판정 숫자와 D-1 보고서가 있음
@@ -113,11 +113,11 @@ description: "과제 1 데이터 수집 체계 구현 작업 목록"
 
 **Independent Test**: 키 이름이 바뀐 메시지를 replay → 설정만 바꿈 → 같은 항목으로 저장되고, `git diff --stat`에 설정 파일만 나온다(quickstart 6)
 
-- [ ] T036 [P] [US4] `tests/fixtures/format_change.jsonl`을 만든다: fixture의 EM300-TH 메시지 3건에서 `object.temperature` 키를 `temp`로 바꾸고 fCnt를 겹치지 않게 바꾼다. 가상의 새 모델 `EM300-TH-v2`(키 `temp`, `humi`) 메시지 2건도 넣는다
-- [ ] T037 [P] [US4] `config/examples/format-change.toml`을 만든다: 운영 설정에 `[models.EM300-TH.keys] temp = "temperature"`와 `[models.EM300-TH-v2]`(keys, interval_s)를 더한 사본
-- [ ] T038 [P] [US4] `tests/integration/test_format_change.py`: 운영 설정으로 replay하면 `temp`/`humi`가 키 이름 그대로 저장되고 `unmapped_key` 이벤트가 남는지, 예시 설정으로 replay하면 `temperature`/`humidity`로 저장되고 unmapped가 0인지를 테스트한다
+- [x] T036 [P] [US4] `tests/fixtures/format_change.jsonl`을 만든다: fixture의 EM300-TH 메시지 3건에서 `object.temperature` 키를 `temp`로 바꾸고 fCnt를 겹치지 않게 바꾼다. 가상의 새 모델 `EM300-TH-v2`(키 `temp`, `humi`) 메시지 2건도 넣는다
+- [x] T037 [P] [US4] `config/examples/format-change.toml`을 만든다: 운영 설정에 `[models.EM300-TH.keys] temp = "temperature"`와 `[models.EM300-TH-v2]`(keys, interval_s)를 더한 사본
+- [x] T038 [P] [US4] `tests/integration/test_format_change.py`: 운영 설정으로 replay하면 `temp`/`humi`가 키 이름 그대로 저장되고 `unmapped_key` 이벤트가 남는지, 예시 설정으로 replay하면 `temperature`/`humidity`로 저장되고 unmapped가 0인지를 테스트한다
 - [X] T039 [US4] `__main__.py`에 `check-config` 명령을 구현한다(종료 코드 0/2, 오류 위치 출력). quickstart 0과 install-service.sh가 써서 US1 때 먼저 구현함
-- [ ] T040 [US4] D-2 시연을 하고 `docs/reports/001-data-collection/format-change.md`에 기록한다: 가정한 상황, 변경 전·후 설정 diff, 바꾸기 전·후 replay 결과(항목별 행 수), 코드 변경 0줄 근거(`git diff --stat`), 운영 서비스 적용 절차(`check-config` → `systemctl restart`), 설정으로 대응 못 하는 한계(contracts/config.md 마지막 절)
+- [x] T040 [US4] D-2 시연을 하고 `docs/reports/001-data-collection/format-change.md`에 기록한다: 가정한 상황, 변경 전·후 설정 diff, 바꾸기 전·후 replay 결과(항목별 행 수), 코드 변경 0줄 근거(`git diff --stat`), 운영 서비스 적용 절차(`check-config` → `systemctl restart`), 설정으로 대응 못 하는 한계(contracts/config.md 마지막 절)
 
 **Checkpoint**: D-2 기록 완료
 
@@ -125,9 +125,9 @@ description: "과제 1 데이터 수집 체계 구현 작업 목록"
 
 ## Phase 7: Polish & 확인 기준 판정
 
-- [ ] T041 [P] `README.md`에 수집기 사용법을 짧게 넣는다(설치, `.env`, 서비스 설치, `status`, `report`)
-- [ ] T042 [P] 커밋 전 점검: `git status`와 `git diff --cached`에 `.env`, `*.db`, 원본 `uplink_raw.jsonl`, 내부 ID(tenantId·applicationId)가 없는지 `grep`으로 확인한다
-- [ ] T043 `.venv/bin/python -m pytest` 전체를 통과시킨다(broker 마커 제외). 상주 메모리를 `systemctl status`의 Memory 또는 `ps -o rss`로 재고 100MB 이하인지 `fault-tests.md`에 기록한다
+- [x] T041 [P] `README.md`에 수집기 사용법을 짧게 넣는다(설치, `.env`, 서비스 설치, `status`, `report`)
+- [x] T042 [P] 커밋 전 점검: `git status`와 `git diff --cached`에 `.env`, `*.db`, 원본 `uplink_raw.jsonl`, 내부 ID(tenantId·applicationId)가 없는지 `grep`으로 확인한다
+- [x] T043 `.venv/bin/python -m pytest` 전체를 통과시킨다(broker 마커 제외). 상주 메모리를 `systemctl status`의 Memory 또는 `ps -o rss`로 재고 100MB 이하인지 `fault-tests.md`에 기록한다
 - [ ] T044 확인 기준 판정표를 `docs/reports/001-data-collection/README.md`에 쓴다: AC-1(회차별 초), AC-2(부팅→첫 행 초), AC-3(공간·항목별 커버율과 95% 통과/미통과, 원인), D-1·D-2 링크, 미통과 항목의 원인과 다음 행동. 회의실 판정은 10/22 강사 답을 반영해 spec Assumptions도 함께 고친다
 
 ---

@@ -82,6 +82,8 @@ battery = "battery"
 interval_s = 600
 [devices."24e124128c140101"]   # 실습실 전방 우측 AM107
 interval_s = 600
+[devices."24e124136d151523"]   # 실습실 EM300-TH. fCnt 기준 관측 600초(2026-10-21, decisions R8e)
+interval_s = 600
 
 [report]
 judged_items = ["co2", "temperature", "humidity"]

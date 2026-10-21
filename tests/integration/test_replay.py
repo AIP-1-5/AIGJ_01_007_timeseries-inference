@@ -67,3 +67,43 @@ def test_replay_bad_config_exit_2(tmp_path, db_path):
                         "--config", str(bad)], cwd=REPO, capture_output=True, text=True)
     assert r.returncode == 2
     assert "password" in r.stderr
+
+
+def run_status(db, *extra):
+    return subprocess.run(
+        [sys.executable, "-m", "collector", "status", "--db", db, "--config", str(CONFIG), *extra],
+        cwd=REPO, capture_output=True, text=True, timeout=60)
+
+
+def test_status_after_replay(db_path):
+    assert run_replay(FIXTURE, db_path).returncode == 0
+    # fixture 시각(2026-10-21)이 언제 돌려도 기간에 들도록 기간을 넉넉히 잡는다
+    r = run_status(db_path, "--hours", "100000", "--json")
+    assert r.returncode == 0, r.stderr
+    data = json.loads(r.stdout)
+    assert sum(d["received"] for d in data["devices"]) == 28
+    assert any(c["location"] == "실습실" and c["item"] == "co2" and c["count"] > 0 for c in data["locations"])
+
+    r = run_status(db_path, "--hours", "100000")
+    assert r.returncode == 0, r.stderr
+    assert "1분 커버율" in r.stdout and "수신률" in r.stdout
+
+
+def test_status_without_db(tmp_path):
+    r = run_status(str(tmp_path / "none.db"))
+    assert r.returncode == 1
+    assert "DB가 없다" in r.stderr
+
+
+def test_report_command_writes_markdown(db_path, tmp_path):
+    assert run_replay(FIXTURE, db_path).returncode == 0
+    out = tmp_path / "coverage.md"
+    r = subprocess.run(
+        [sys.executable, "-m", "collector", "report", "--db", db_path, "--config", str(CONFIG),
+         "--start", "2026-10-21T05:00Z", "--end", "2026-10-21T05:10Z", "--out", str(out), "--data", "fixture"],
+        cwd=REPO, capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    text = out.read_text(encoding="utf-8")
+    for section in ("## 1. 측정 조건", "## 2.", "## 3.", "## 4.", "## 5.", "## 6. 해석"):
+        assert section in text
+    assert "| 데이터 | fixture |" in text

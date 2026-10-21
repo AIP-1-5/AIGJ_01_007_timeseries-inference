@@ -37,6 +37,18 @@ def _parser() -> argparse.ArgumentParser:
                      help="업링크 JSON만 있는 줄에 쓸 토픽 ({dev} = devEui)")
 
     sub.add_parser("check-config", parents=[common], help="설정 파일만 검사")
+
+    st = sub.add_parser("status", parents=[common], help="현황 조회 (읽기 전용)")
+    st.add_argument("--db", help="설정의 storage.db_path 덮어쓰기")
+    st.add_argument("--hours", type=float, default=24, help="최근 몇 시간 (기본 24)")
+    st.add_argument("--json", action="store_true", help="JSON으로 출력")
+
+    rp = sub.add_parser("report", parents=[common], help="수집 현황 보고(D-1) Markdown 만들기 (읽기 전용)")
+    rp.add_argument("--db", help="설정의 storage.db_path 덮어쓰기")
+    rp.add_argument("--start", required=True, help="시작 (UTC ISO, 예: 2026-10-21T07:04Z)")
+    rp.add_argument("--end", help="끝 (기본: 시작 + 24시간)")
+    rp.add_argument("--out", help="저장할 파일 (없으면 화면에 출력)")
+    rp.add_argument("--data", default="실데이터 (교육장 MQTT 브로커)", help="측정 조건의 데이터 설명")
     return p
 
 
@@ -87,6 +99,86 @@ def cmd_check_config(args) -> int:
     return 0
 
 
+def cmd_status(args) -> int:
+    from .report import format_status, status_data
+    from .store import open_readonly
+
+    cfg = load_config(args.config)
+    db = args.db or cfg.storage.db_path
+    if not os.path.exists(db):
+        print(f"DB가 없다: {db}", file=sys.stderr)
+        return 1
+    conn = open_readonly(db)
+    try:
+        data = status_data(conn, cfg, args.hours)
+    finally:
+        conn.close()
+    print(json.dumps(data, ensure_ascii=False, indent=2) if args.json else format_status(data))
+    return 0
+
+
+def _report_meta(cfg, data_desc: str, last_start: str | None) -> dict:
+    """보고서 측정 조건. 명령이 실패해도 보고서는 만든다(값에 '확인 못 함')."""
+    import hashlib
+    import subprocess
+
+    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def run(cmd):
+        try:
+            return subprocess.run(cmd, capture_output=True, text=True, timeout=10, cwd=repo).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            return ""
+
+    commit = run(["git", "rev-parse", "--short", "HEAD"]) or "확인 못 함"
+    if run(["git", "status", "--porcelain", "--untracked-files=no"]):
+        commit += " + 커밋 안 된 변경"
+    power = next((line.split(":", 1)[1].strip() for line in run(["nvpmodel", "-q"]).splitlines()
+                  if line.startswith("NV Power Mode")), "확인 못 함")
+    service = "확인 못 함"
+    if last_start:
+        info = json.loads(last_start)
+        service = (f"`tsinfer-collector-{info.get('user', '?')}` (마지막 start: host={info.get('host')}, "
+                   f"user={info.get('user')}, client_id={info.get('client_id')})")
+    with open(cfg.path, "rb") as f:
+        sha = hashlib.sha256(f.read()).hexdigest()[:12]
+    return {"host": socket.gethostname(), "power_mode": power, "service": service, "commit": commit,
+            "config_path": os.path.relpath(cfg.path, repo), "config_sha": sha, "data": data_desc}
+
+
+def cmd_report(args) -> int:
+    from datetime import timedelta
+
+    from .coverage import parse_iso
+    from .report import format_report, report_data
+    from .store import open_readonly
+
+    cfg = load_config(args.config)
+    db = args.db or cfg.storage.db_path
+    if not os.path.exists(db):
+        print(f"DB가 없다: {db}", file=sys.stderr)
+        return 1
+    try:
+        start = parse_iso(args.start)
+        end = parse_iso(args.end) if args.end else start + timedelta(hours=24)
+    except ValueError as e:
+        print(f"시각 형식 오류: {e}", file=sys.stderr)
+        return 2
+    conn = open_readonly(db)
+    try:
+        data = report_data(conn, cfg, start, end)
+    finally:
+        conn.close()
+    text = format_report(data, cfg, _report_meta(cfg, args.data, data["last_start"]))
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as f:
+            f.write(text)
+        print(f"보고서: {args.out}")
+    else:
+        print(text)
+    return 0
+
+
 def cmd_run(args) -> int:
     from .mqtt_client import MqttCollector, client_id
     from .writer import Writer
@@ -129,7 +221,8 @@ def cmd_run(args) -> int:
 
 def main(argv=None) -> int:
     args = _parser().parse_args(argv)
-    handlers = {"run": cmd_run, "replay": cmd_replay, "check-config": cmd_check_config}
+    handlers = {"run": cmd_run, "replay": cmd_replay, "check-config": cmd_check_config,
+                "status": cmd_status, "report": cmd_report}
     try:
         return handlers[args.command](args)
     except (ConfigError, SchemaError) as e:

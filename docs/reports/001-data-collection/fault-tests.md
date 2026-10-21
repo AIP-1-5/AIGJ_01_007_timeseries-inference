@@ -41,6 +41,17 @@
 |---|---|---|---|---|
 | | | | | 없음 |
 
-## 자동 재시작 (T028, 사용자 실행 대기)
+## 자동 재시작 (T028)
 
-`sudo systemctl kill -s KILL tsinfer-collector-yj` 뒤 다시 active가 될 때까지의 초:
+**측정 조건**: 보드 B(`team5-b`), 전원 모드 MAXN_SUPER, 실데이터, 2026-10-21, 커밋 `af757c9`, 서비스 `tsinfer-collector-yj`(`Restart=always`, `RestartSec=5`). 명령: `sudo systemctl kill -s KILL tsinfer-collector-yj` (사용자 실행).
+
+| 강제 종료 시각 | 재시작 시각 | 다시 active까지 | 재시작 후 첫 새 행 | 종료 → 첫 행 | 빠진 데이터 | 판정 |
+|---|---|---|---|---|---|---|
+| 07:03:52Z | 07:03:57Z (`NRestarts=1`) | 5초 | 07:04:01.2Z | 9초 | 없음(1분 칸 빈 곳 0) | 통과 |
+
+- 꺼져 있던 동안 온 메시지는 브로커가 보관했다가 재연결 때 넘겨줬다(`session_present=True`, QoS 1, `clean_session=False`, research R3).
+- 강제 종료라 `stop` 이벤트가 없다. 현황 계산은 "stop 없이 나온 start 직전 공백"을 꺼짐으로 잡는다(decisions R8c).
+
+## 상주 메모리 (T043)
+
+2026-10-21 16:25 KST, 서비스 가동 약 20분: RSS 23.7MB(`ps -o rss`), cgroup `MemoryCurrent` 19.2MB, `MemoryPeak` 19.9MB. 목표 100MB 이하 **통과**. 24시간 뒤 다시 잰다(큐가 쌓이거나 새는지 확인).
