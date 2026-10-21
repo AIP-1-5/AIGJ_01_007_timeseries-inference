@@ -19,7 +19,7 @@ import torch
 from torch import nn
 
 from tsdata.prep import PrepConfig, period_of
-from tsmodel.features import time_features
+from tsmodel.features import device, time_features
 
 ITEMS = ["co2", "temperature", "humidity"]
 TARGETS = ["co2", "temperature"]
@@ -56,7 +56,7 @@ def space_frame(series: pd.DataFrame, loc: str, normalizer: dict) -> pd.DataFram
 
 
 def build_inputs(frame: pd.DataFrame, loc: str, spaces: list[str], cfg: PrepConfig, schedule: bool,
-                 anchors: np.ndarray | None = None) -> dict:
+                 anchors: np.ndarray | None = None, lags: bool = False) -> dict:
     """기준 시각(anchors = frame 행 번호)마다 seq, static, 현재값, 정답(있으면)을 만든다.
 
     입력 창의 결측은 창 안에서 앞 값으로 채우고, 그래도 없으면 0(학습 평균)으로 둔다. 관측 여부를 함께 넣는다.
@@ -81,6 +81,16 @@ def build_inputs(frame: pd.DataFrame, loc: str, spaces: list[str], cfg: PrepConf
         feats.append(time_features(t, cfg, schedule=schedule).to_numpy(np.float32))
     onehot = np.zeros((len(anchors), len(spaces)), np.float32)
     onehot[:, spaces.index(loc)] = 1
+    if lags:
+        # 어제 같은 시각(t+off−24시간)의 CO₂·온도(정규화)와 관측 여부. 과거 값이라 누수 없음
+        day = 24 * 60 // cfg.step_min
+        for off in FUTURE_OFFSETS:
+            j = anchors + off - day
+            okj = (j >= 0) & (j < n)
+            jj = np.clip(j, 0, n - 1)
+            v = vals[jj][:, :2].copy()
+            v[~okj] = np.nan
+            feats.append(np.concatenate([np.nan_to_num(v, nan=0.0), (~np.isnan(v)).astype(np.float32)], axis=1))
     static = np.concatenate([onehot] + feats, axis=1)
 
     cur = frame[TARGETS].to_numpy(np.float32)[anchors]                     # [N, 2]
@@ -107,13 +117,13 @@ def stds_for(loc: str, normalizer: dict) -> np.ndarray:
 
 # --- 데이터셋 ------------------------------------------------------------------
 
-def make_dataset(series: pd.DataFrame, normalizer: dict, cfg: PrepConfig, schedule: bool) -> dict:
+def make_dataset(series: pd.DataFrame, normalizer: dict, cfg: PrepConfig, schedule: bool, lags: bool = False) -> dict:
     """기간별(train/val/test) 텐서. 공간 3곳을 합친다."""
     spaces = cfg["baseline"]["spaces"]
     parts: dict[str, list] = {"train": [], "val": [], "test": []}
     for loc in spaces:
         fr = space_frame(series, loc, normalizer)
-        inp = build_inputs(fr, loc, spaces, cfg, schedule)
+        inp = build_inputs(fr, loc, spaces, cfg, schedule, lags=lags)
         y, m = target_delta(inp, stds_for(loc, normalizer))
         per = period_of(pd.Series(inp["times"]), cfg).to_numpy()
         ok = ~np.isnan(inp["current"]).any(axis=1)
@@ -128,7 +138,7 @@ def make_dataset(series: pd.DataFrame, normalizer: dict, cfg: PrepConfig, schedu
 # --- 학습 ----------------------------------------------------------------------
 
 def _device() -> torch.device:
-    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    return device()
 
 
 def predict(model: ForecastGRU, seq: np.ndarray, static: np.ndarray, batch: int = 4096) -> np.ndarray:
@@ -216,7 +226,7 @@ def load(path: str, device: str = "cpu") -> tuple[ForecastGRU, dict]:
 # --- 평가(과제 2 평가 시점) -----------------------------------------------------
 
 def evaluate_on_points(model, series: pd.DataFrame, points: pd.DataFrame, normalizer: dict, cfg: PrepConfig,
-                       schedule: bool, period: str, name: str) -> pd.DataFrame:
+                       schedule: bool, period: str, name: str, lags: bool = False) -> pd.DataFrame:
     """[period, location, item, horizon_min, baseline(=name), mae, n]. 평가 시점은 기준선과 같다."""
     spaces = cfg["baseline"]["spaces"]
     rows = []
@@ -225,7 +235,7 @@ def evaluate_on_points(model, series: pd.DataFrame, points: pd.DataFrame, normal
         pos = pd.Series(np.arange(len(fr)), index=fr.index)
         pts = points[(points["period"] == period) & (points["location"] == loc)]
         anchors_all = np.unique(pos.reindex(pts["time"]).dropna().astype(int).to_numpy())
-        inp = build_inputs(fr, loc, spaces, cfg, schedule, anchors=anchors_all)
+        inp = build_inputs(fr, loc, spaces, cfg, schedule, anchors=anchors_all, lags=lags)
         pred = to_values(predict(model, inp["seq"], inp["static"]), inp["current"],
                          np.array([loc] * len(anchors_all)), normalizer)
         at = pd.Series(np.arange(len(anchors_all)), index=fr.index[anchors_all])

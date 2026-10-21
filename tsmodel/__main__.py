@@ -42,18 +42,18 @@ def cmd_forecast(cfg, epochs: int) -> None:
     histories = {}
     for variant, schedule in (("gru_schedule", True), ("gru_no_schedule", False)):
         print(f"[{variant}] 데이터셋", flush=True)
-        ds = fc.make_dataset(series, norm, cfg, schedule)
+        ds = fc.make_dataset(series, norm, cfg, schedule, lags=True)
         print(f"  학습 {len(ds['train']['seq'])}, 검증 {len(ds['val']['seq'])} (시험은 평가에만)", flush=True)
         model, hist = fc.train(ds, norm, epochs=epochs, log=lambda s: print(s, flush=True))
         histories[variant] = hist
         meta = {"variant": variant, "schedule": schedule, "n_seq": ds["train"]["seq"].shape[2],
                 "n_static": ds["train"]["static"].shape[1], "hidden": 64, "seq_len": fc.SEQ_LEN,
                 "horizon": fc.HORIZON, "spaces": cfg["baseline"]["spaces"], "config_sha": cfg.sha,
-                "best_val_mae60_co2": min(h["val_mae60_co2"] for h in hist), "seed": 0,
+                "lags": True, "best_val_mae60_co2": min(h["val_mae60_co2"] for h in hist), "seed": 0,
                 "device": str(next(model.parameters()).device), "torch": torch.__version__}
-        fc.save(model, os.path.join(MODEL_DIR, f"forecast_{variant}.pt"), meta)
+        fc.save(model, os.path.join(MODEL_DIR, f"forecast_{variant}_v2.pt"), meta)   # 서비스(v1 사용 중)와 겹치지 않게
         for period in ("val", "test"):
-            perf.append(fc.evaluate_on_points(model, series, points, norm, cfg, schedule, period, variant))
+            perf.append(fc.evaluate_on_points(model, series, points, norm, cfg, schedule, period, variant, lags=True))
         del ds
     perf = pd.concat(perf, ignore_index=True)
     perf.to_csv(os.path.join(cfg.path_of("out_dir"), "forecast_perf.csv"), index=False)
@@ -70,7 +70,7 @@ ORDER = ["persistence", "mean_1h", "yesterday", "gru_no_schedule", "gru_schedule
 def write_table(cfg, perf: pd.DataFrame, rep) -> None:
     c = conditions(cfg)
     L = ["# 모델 비교표 (과제 3 D-1)", "", "| 측정 조건 | 값 |", "|---|---|"] + [f"| {k} | {v} |" for k, v in c.items()]
-    L += ["| 모델 | GRU 1층(은닉 64), 입력 2시간, 60분 한 번에 출력(변화량), 시드 0, 학습 기간 학습·검증 기간 조기 종료 |", "",
+    L += ["| 모델 | GRU 1층(은닉 64), 입력 2시간 + 어제 같은 시각 값, 60분 한 번에 출력(변화량), 시드 0, 학습 기간 학습·검증 기간 조기 종료 |", "",
           "MAE(CO₂ ppm, 온도 ℃). 같은 기간·공간·항목·거리 안에서 모든 방법이 과제 2의 **같은 평가 시점**을 쓴다.", ""]
     for period in ("test", "val"):
         L += [f"## {'시험' if period == 'test' else '검증'} 기간", "",
@@ -271,9 +271,54 @@ def cmd_state(cfg) -> None:
                   for m in ("model", "rule")}, flush=True)
 
 
+def cmd_pretrained(cfg) -> None:
+    from tsmodel import pretrained
+
+    series, points, norm, _ = load_prep(cfg)
+    r = pretrained.run(series, points, norm, cfg, str(REPO / "docs" / "reports" / "006-pretrained"))
+    print(json.dumps({k: v for k, v in r.items() if k != "rows"}, ensure_ascii=False))
+    for row in r["rows"]:
+        print(row)
+
+
+def cmd_edge(cfg) -> None:
+    import math
+
+    import numpy as np
+    import torch
+
+    from tsdata.prep import period_of
+    from tsmodel import anomaly as an
+    from tsmodel import edge
+    from tsmodel import forecast as fc
+    from tsmodel import state as stt
+
+    series, _, norm, _ = load_prep(cfg)
+    loc = "실습실"
+    fr = fc.space_frame(series, loc, norm)
+    per = period_of(pd.Series(fr.index), cfg).to_numpy()
+    test_idx = np.where((per == "test") & fr["co2"].notna().to_numpy())[0]
+    anchors = test_idx[(test_idx >= fc.SEQ_LEN) & (test_idx < len(fr) - 13)][::20][:400]
+    inp = fc.build_inputs(fr, loc, cfg["baseline"]["spaces"], cfg, True, anchors=anchors)
+    x_ae, ends = an.windows(fr, loc, norm, cfg)
+    x_ae = np.nan_to_num(x_ae[np.isin(ends, anchors)]).astype(np.float32)
+    meta = torch.load(os.path.join(MODEL_DIR, "state_vent.pt"), weights_only=False)["meta"]
+    vd = stt.vent_dataset(fr, loc, norm, cfg)
+    vd = vd[(period_of(pd.Series(vd.index), cfg).to_numpy() == "test")].dropna(subset=meta["features"])
+    x_v = vd[meta["features"]].to_numpy(np.float32)[:4000]
+    samples = {"forecast": [inp["seq"], inp["static"]], "anomaly": [x_ae], "vent": [x_v]}
+    thr = meta["threshold"]
+    scale = {"forecast": norm["stats"][f"{loc}|co2"]["std"], "vent_logit": math.log(thr / (1 - thr))}
+    r = edge.benchmark(samples, scale, str(REPO / "docs" / "reports" / "007-edge"))
+    for row in r["rows"]:
+        print(row)
+    print(json.dumps(r["diffs"], ensure_ascii=False))
+    print(json.dumps(r["tegrastats"], ensure_ascii=False))
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="tsmodel")
-    p.add_argument("command", choices=["forecast", "anomaly", "state"])
+    p.add_argument("command", choices=["forecast", "anomaly", "state", "pretrained", "edge"])
     p.add_argument("--epochs", type=int, default=20)
     p.add_argument("--config", default=str(REPO / "config" / "prep.toml"))
     a = p.parse_args(argv)
@@ -284,6 +329,10 @@ def main(argv=None) -> int:
         cmd_anomaly(cfg)
     elif a.command == "state":
         cmd_state(cfg)
+    elif a.command == "pretrained":
+        cmd_pretrained(cfg)
+    elif a.command == "edge":
+        cmd_edge(cfg)
     return 0
 
 

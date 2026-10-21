@@ -225,7 +225,7 @@ def forecast_space(models: ModelStore, series, loc, normalizer, prep_cfg, curren
     if len(frame) < fc.SEQ_LEN:
         return persistence_forecast(current)
     inp = fc.build_inputs(frame, loc, meta["spaces"], prep_cfg, meta.get("schedule", True),
-                          anchors=np.array([len(frame) - 1]))
+                          anchors=np.array([len(frame) - 1]), lags=meta.get("lags", False))
     pred = fc.to_values(fc.predict(model, inp["seq"], inp["static"]), inp["current"], np.array([loc]), normalizer)[0]
     return {"model": meta.get("variant", "gru"), "step_min": 5, "minutes": [5 * (i + 1) for i in range(len(pred))],
             "co2": [_num(v, 1) for v in pred[:, 0]], "temperature": [_num(v) for v in pred[:, 1]]}

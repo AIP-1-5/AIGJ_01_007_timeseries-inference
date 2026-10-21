@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import os
+
 import numpy as np
 import pandas as pd
 
@@ -45,3 +47,10 @@ def time_features(times: pd.Series | pd.DatetimeIndex, cfg: PrepConfig, schedule
     out["min_to_class"] = np.where(workday, np.clip(start - tod, 0, 180) / 180, 1.0)
     out["min_from_class_end"] = np.where(workday, np.clip(tod - end, 0, 180) / 180, 1.0)
     return out
+
+
+def device():
+    """학습·추론 장치. 기본 CPU: 설치된 PyTorch 2.14(cu130)는 Orin(CC 8.7)을 공식 지원하지 않는다(과제 7에서 GPU 따로 측정).
+    TSINFER_DEVICE=cuda로 바꿀 수 있다."""
+    import torch
+    return torch.device(os.environ.get("TSINFER_DEVICE", "cpu"))

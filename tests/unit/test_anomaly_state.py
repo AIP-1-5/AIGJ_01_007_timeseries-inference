@@ -45,7 +45,7 @@ def test_event_evaluation_by_hand():
     flags = np.zeros(1000, bool)
     flags[105] = True            # 고장 1 탐지(지연 5칸 = 25분)
     flags[500:503] = True        # 고장과 무관 → 헛경보 1건(묶음)
-    flags[510] = True            # 30분 안이라 같은 경보로 묶임
+    flags[506] = True            # 30분(6칸) 안이라 같은 경보로 묶임
     events = [{"start": 100, "end": 130}, {"start": 300, "end": 310}]
     r = an.evaluate_events(flags, events, np.ones(1000, bool))
     assert [e["detected"] for e in r["events"]] == [True, False]

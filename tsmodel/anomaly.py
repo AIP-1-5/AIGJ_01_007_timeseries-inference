@@ -12,7 +12,7 @@ import torch
 from torch import nn
 
 from tsdata.prep import PrepConfig, period_of
-from tsmodel.features import time_features
+from tsmodel.features import device, time_features
 
 ITEMS = ["co2", "temperature", "humidity"]
 WIN = 12                     # 1시간 창
@@ -123,7 +123,7 @@ class AutoEncoder(nn.Module):
 
 def train_ae(x: np.ndarray, epochs: int = 15, seed: int = 0, log=print) -> AutoEncoder:
     torch.manual_seed(seed)
-    dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    dev = device()
     x = x[~np.isnan(x).any(axis=1)]
     model = AutoEncoder().to(dev)
     opt = torch.optim.Adam(model.parameters(), lr=1e-3)
@@ -153,9 +153,10 @@ def ae_scores(model: AutoEncoder, x: np.ndarray) -> tuple[np.ndarray, np.ndarray
             outs.append(model(torch.from_numpy(xx[i:i + 8192]).to(dev)).cpu().numpy())
     rec = np.concatenate(outs)
     err = (rec - xx[:, :-3]) ** 2
-    per_item = err.reshape(len(x), WIN, len(ITEMS)).mean(axis=1)
+    # 창 안 최대 오차: 평균을 쓰면 한 칸만 튄 값이 묻힌다
+    per_item = err.reshape(len(x), WIN, len(ITEMS)).max(axis=1)
     per_item[bad] = 0
-    return per_item.mean(axis=1), per_item
+    return per_item.max(axis=1), per_item
 
 
 # --- 규칙 ----------------------------------------------------------------------
@@ -168,14 +169,19 @@ def rule_flags(frame: pd.DataFrame, cfg: PrepConfig, ref: dict) -> pd.DataFrame:
     out = pd.DataFrame(index=frame.index)
     out["spike"] = (co2.diff().abs() > ref["spike_co2"]) | (temp.diff().abs() > ref["spike_temp"])
     # 값 고정: 1시간 동안 값이 완전히 같음(CO₂), 온도는 0.1℃ 단위라 낮에만
-    out["stuck"] = (co2.rolling(WIN).std() == 0) | ((temp.rolling(WIN).std() == 0) & tf["in_class"].astype(bool).to_numpy())
+    # 실수 계산의 미세 오차 때문에 0과 정확히 같지 않을 수 있어 허용 오차를 둔다
+    out["stuck"] = (co2.rolling(WIN).std() < 1e-6) | ((temp.rolling(WIN).std() < 1e-6) & tf["in_class"].astype(bool).to_numpy())
     # 영점 틀어짐: 새벽(03~06시) CO₂가 학습 기간 새벽 수준보다 높음
     dawn = (hour >= 3) & (hour < 6)
     out["drift"] = dawn & (co2 > ref["dawn_co2"] + ref["drift_margin"])
     # 냉방 정지: 2시간 온도 상승이 학습 기간 99.9% 분위수보다 큼
     out["hvac"] = temp.diff(24) > ref["temp_rise_2h"]
     # 환기 정지: CO₂가 그 시간대 학습 기간 99.9% 분위수보다 높음
-    out["vent"] = co2.to_numpy() > np.array([ref["co2_hour_q"].get(h, np.inf) for h in hour])
+    out["vent"] = (co2.to_numpy() > np.array([ref["co2_hour_q"].get(h, np.inf) for h in hour])) \
+        | ((co2.diff(6) > ref["co2_rise_30m"]) & tf["in_class"].astype(bool).to_numpy())   # 환기 정지: 상승 폭이 평소보다 큼
+    # 서서히 생기는 설비 고장(냉방·환기)은 2칸(10분) 연속일 때만 경보: 한 칸짜리 정상 변동을 거른다
+    for c in ("hvac", "vent"):
+        out[c] = out[c].fillna(False) & out[c].shift(1, fill_value=False).fillna(False)
     return out.fillna(False)
 
 
@@ -187,6 +193,7 @@ def rule_reference(frame: pd.DataFrame, train_mask: np.ndarray, cfg: PrepConfig)
             "spike_temp": float(tr["temperature"].diff().abs().quantile(0.9999)) + 0.5,
             "dawn_co2": float(dawn.quantile(0.99)), "drift_margin": 100.0,
             "temp_rise_2h": float(tr["temperature"].diff(24).quantile(0.999)),
+            "co2_rise_30m": float(tr["co2"].diff(6).quantile(0.9995)),
             "co2_hour_q": {int(h): float(v) for h, v in tr["co2"].groupby(hour).quantile(0.999).items()}}
 
 
