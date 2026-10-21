@@ -1,0 +1,21 @@
+# 과제 8 상시 추론 서비스 systemd 유닛 틀. deploy/install-inference-service.sh가 @USER@, @REPO@를 채워
+# /etc/systemd/system/tsinfer-service-@USER@.service 로 설치한다.
+[Unit]
+Description=tsinfer inference service (assignment 8, @USER@)
+After=network-online.target tsinfer-collector-@USER@.service
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=@USER@
+WorkingDirectory=@REPO@
+EnvironmentFile=@REPO@/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=@REPO@/.venv/bin/python -m service run --config @REPO@/config/service.toml
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,47 @@
+# 과제 8 상시 추론 서비스 설정. 계약: docs/reports/008-service/result-format.md
+# 비밀값(MQTT 주소·계정)은 여기에 두지 않는다. .env에서 읽는다(collector.config.mqtt_connection).
+
+[service]
+interval_s = 60            # 매분 계산
+offset_s = 5               # 매분 05초에 돈다(수집기가 직전 분 메시지를 저장할 시간)
+history_hours = 26         # 입력 2시간 + 하루 최저(사용 여부 특성) + 여유
+cycle_log = "~/data/tsinfer/service/cycles.jsonl"
+
+[paths]
+collector_config = "config/collector.toml"   # 수집 DB 위치(storage.db_path)
+prep_config = "config/prep.toml"             # 학습과 같은 전처리 설정
+normalizer = "~/data/tsinfer/prep/prep_params.json"
+
+[models]                   # 없으면 fallback으로 돈다. 파일이 바뀌면 다음 주기에 다시 읽는다(재시작 없음)
+dir = "~/data/tsinfer/models"
+forecast = "forecast_gru_schedule.pt"
+anomaly = "anomaly_ae.pt"
+occupancy = "state_occupancy.pt"
+vent = "state_vent.pt"
+
+[api]
+host = "0.0.0.0"
+port = 8807
+
+[mqtt]
+topic_prefix = "tsinfer/yj"
+qos = 1
+retain = true
+client_id_prefix = "tsinfer-service"
+
+[spaces]                   # 공간 이름 → 토픽·API용 영문 id
+"실습실" = "lab"
+"사무실" = "office"
+"회의실" = "meeting"
+"사무실 밖" = "outside"
+
+[forecast]
+spaces = ["실습실", "사무실", "회의실"]   # 사무실 밖은 규칙만
+co2_limit = 1000
+
+[alerts]
+repeat_min = 30            # 같은 경보는 30분마다만 다시 보낸다
+data_gap_min = 5           # 공간의 마지막 수신이 max(5분, 센서 간격 × 2)보다 오래되면 끊김
+collector_heartbeat_max_s = 180   # 수집기 heartbeat가 3분 넘게 없으면 수집기 중단
+stuck_window_min = 60      # CO₂가 60분 동안 완전히 같으면 값 고정
+out_of_range_window_min = 10
