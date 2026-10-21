@@ -1,4 +1,4 @@
-# AIGJ_01_012_timeseries-inference
+# AIGJ_01_007_timeseries-inference
 
 교육장 센서(CO₂·온도·습도) 데이터로 60분 예측, 이상 탐지, 사용 여부 추정을 하고 Jetson Orin Nano에서 상시 추론 서비스로 운영하는 과제 저장소.
 
@@ -19,8 +19,8 @@
 ```bash
 mkdir -p ~/work && cd ~/work
 git clone git@github.com:AIP-1-5/docs.git
-git clone git@github.com:AIP-1-5/AIGJ_01_012_timeseries-inference.git
-cd AIGJ_01_012_timeseries-inference
+git clone git@github.com:AIP-1-5/AIGJ_01_007_timeseries-inference.git
+cd AIGJ_01_007_timeseries-inference
 cp .env.example .env            # 값은 팀 단톡방에서 받는다
 claude --add-dir ../docs        # 과제 문서도 읽을 수 있게 Claude Code 실행
 ```
