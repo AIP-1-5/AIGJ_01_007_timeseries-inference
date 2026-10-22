@@ -13,9 +13,21 @@
 | 기준 | 결과 | 판정 |
 |---|---|---|
 | AC-1 12시간 무중단 | 14시간 10분, 주기 **851/851**(빠진 분 0), 주기 실패 0, 공간 계산 실패 0 | 통과 |
-| AC-2 수집기 10분 중지 → 끊김 경보 → 복구 | **[대기]** 과제 1의 24시간 측정(10/22 16:04 종료)을 깨지 않으려고 그 뒤에 시험 | 대기 |
+| AC-2 수집기 10분 중지 → 끊김 경보 → 복구 | 10-22 10:47:42 중지 → 10:50 `collector_down`(2분 18초 뒤), 10:52~53 `data_gap` → 10:58:00 재시작 → 10:58~59 `resolved`, 10:59 전 공간 `ok` | 통과 |
 | AC-3 조회 API로 공간별 예측·이상·상태 | `/health` `/spaces` `/spaces/lab` `/spaces/lab/forecast?minutes=30` `/alerts` 모두 응답(10/22 10:24 확인) | 통과 |
 | AC-4 결과 형식 문서 | [result-format.md](result-format.md) | 통과 |
+
+## 수집기 중지 시험 (AC-2, 10-22)
+
+| 시각 (KST) | 일 | 서비스 결과 |
+|---|---|---|
+| 10:47:42 | `sudo systemctl stop tsinfer-collector-yj` | — |
+| 10:50 | | `collector_down` new, 4개 공간 모두 `degraded` (heartbeat 3분 기준) |
+| 10:52 / 10:53 | | `data_gap` new: 사무실 밖 / 사무실 (마지막 측정 5분 기준) |
+| 10:58:00 | `sudo systemctl start tsinfer-collector-yj` | — |
+| 10:58 / 10:59 | | `data_gap` resolved, `collector_down` resolved, 전 공간 `ok` |
+
+실습실·회의실은 `data_gap`이 나지 않았다. 10분 간격 센서가 있어 끊김 기준이 max(5분, 간격 × 2) = 20분이기 때문이다. 이 경우는 `collector_down` 하나가 전 공간을 덮는다. 시험 중에도 서비스 주기는 멈추지 않았다(1.1~1.2초).
 
 ## 주기 처리 시간 (851주기)
 
