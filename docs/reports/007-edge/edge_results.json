@@ -1,0 +1,213 @@
+{
+  "rows": [
+    {
+      "model": "forecast",
+      "backend": "pytorch_cpu",
+      "batch": 1,
+      "mean_ms": 53.23421364006208,
+      "p95_ms": 96.18896105057495
+    },
+    {
+      "model": "forecast",
+      "backend": "pytorch_gpu",
+      "batch": 1,
+      "mean_ms": 0.8177937149412173,
+      "p95_ms": 1.0184063983615486
+    },
+    {
+      "model": "forecast",
+      "backend": "onnxruntime_cpu",
+      "batch": 1,
+      "mean_ms": 0.12204195021695341,
+      "p95_ms": 0.14747914974577722
+    },
+    {
+      "model": "forecast",
+      "backend": "tensorrt_fp16",
+      "batch": 1,
+      "error": "AttributeError(\"type object 'tensorrt_bindings.tensorrt.BuilderFlag' has no attribute 'FP16'\")"
+    },
+    {
+      "model": "forecast",
+      "backend": "pytorch_cpu",
+      "batch": 4,
+      "mean_ms": 39.28223581971906,
+      "p95_ms": 56.254195599467494
+    },
+    {
+      "model": "forecast",
+      "backend": "pytorch_gpu",
+      "batch": 4,
+      "mean_ms": 0.8503211249808373,
+      "p95_ms": 0.9027314501508953
+    },
+    {
+      "model": "forecast",
+      "backend": "onnxruntime_cpu",
+      "batch": 4,
+      "mean_ms": 0.34570240506582195,
+      "p95_ms": 0.31641915011277877
+    },
+    {
+      "model": "forecast",
+      "backend": "tensorrt_fp16",
+      "batch": 4,
+      "error": "AttributeError(\"type object 'tensorrt_bindings.tensorrt.BuilderFlag' has no attribute 'FP16'\")"
+    },
+    {
+      "model": "anomaly",
+      "backend": "pytorch_cpu",
+      "batch": 1,
+      "mean_ms": 4.846443094884307,
+      "p95_ms": 8.343444549791455
+    },
+    {
+      "model": "anomaly",
+      "backend": "pytorch_gpu",
+      "batch": 1,
+      "mean_ms": 0.670715430223936,
+      "p95_ms": 0.9724454495881213
+    },
+    {
+      "model": "anomaly",
+      "backend": "onnxruntime_cpu",
+      "batch": 1,
+      "mean_ms": 0.07681701508772676,
+      "p95_ms": 0.03376099994056858
+    },
+    {
+      "model": "anomaly",
+      "backend": "tensorrt_fp16",
+      "batch": 1,
+      "error": "AttributeError(\"type object 'tensorrt_bindings.tensorrt.BuilderFlag' has no attribute 'FP16'\")"
+    },
+    {
+      "model": "anomaly",
+      "backend": "pytorch_cpu",
+      "batch": 4,
+      "mean_ms": 2.118870235099166,
+      "p95_ms": 3.6147219509075494
+    },
+    {
+      "model": "anomaly",
+      "backend": "pytorch_gpu",
+      "batch": 4,
+      "mean_ms": 0.598114175027149,
+      "p95_ms": 0.6636006497501512
+    },
+    {
+      "model": "anomaly",
+      "backend": "onnxruntime_cpu",
+      "batch": 4,
+      "mean_ms": 0.07453089514456224,
+      "p95_ms": 0.03610660078265937
+    },
+    {
+      "model": "anomaly",
+      "backend": "tensorrt_fp16",
+      "batch": 4,
+      "error": "AttributeError(\"type object 'tensorrt_bindings.tensorrt.BuilderFlag' has no attribute 'FP16'\")"
+    },
+    {
+      "model": "vent",
+      "backend": "pytorch_cpu",
+      "batch": 1,
+      "mean_ms": 1.7982503150960838,
+      "p95_ms": 3.238743249858089
+    },
+    {
+      "model": "vent",
+      "backend": "pytorch_gpu",
+      "batch": 1,
+      "mean_ms": 0.5057745299018279,
+      "p95_ms": 0.5447537996587924
+    },
+    {
+      "model": "vent",
+      "backend": "onnxruntime_cpu",
+      "batch": 1,
+      "mean_ms": 0.030694154902448645,
+      "p95_ms": 0.03760164818231706
+    },
+    {
+      "model": "vent",
+      "backend": "tensorrt_fp16",
+      "batch": 1,
+      "error": "AttributeError(\"type object 'tensorrt_bindings.tensorrt.BuilderFlag' has no attribute 'FP16'\")"
+    },
+    {
+      "model": "vent",
+      "backend": "pytorch_cpu",
+      "batch": 4,
+      "mean_ms": 0.8500532800098881,
+      "p95_ms": 1.2828965984226663
+    },
+    {
+      "model": "vent",
+      "backend": "pytorch_gpu",
+      "batch": 4,
+      "mean_ms": 0.5070510398581973,
+      "p95_ms": 0.616098147656885
+    },
+    {
+      "model": "vent",
+      "backend": "onnxruntime_cpu",
+      "batch": 4,
+      "mean_ms": 0.05092537487144,
+      "p95_ms": 0.03159140105708502
+    },
+    {
+      "model": "vent",
+      "backend": "tensorrt_fp16",
+      "batch": 4,
+      "error": "AttributeError(\"type object 'tensorrt_bindings.tensorrt.BuilderFlag' has no attribute 'FP16'\")"
+    }
+  ],
+  "diffs": {
+    "forecast": {
+      "pytorch_gpu": {
+        "max_abs_co2_ppm": 0.0037796420510858297,
+        "mean_abs_co2_ppm": 0.00017506955191493034
+      },
+      "onnxruntime_cpu": {
+        "max_abs_co2_ppm": 0.00032663572346791625,
+        "mean_abs_co2_ppm": 1.9752631487790495e-05
+      }
+    },
+    "anomaly": {
+      "pytorch_gpu": {
+        "max_abs_diff": 2.86102294921875e-06
+      },
+      "onnxruntime_cpu": {
+        "max_abs_diff": 2.86102294921875e-06
+      }
+    },
+    "vent": {
+      "pytorch_gpu": {
+        "flip_rate": 0.0,
+        "n": 4000
+      },
+      "onnxruntime_cpu": {
+        "flip_rate": 0.0,
+        "n": 4000
+      }
+    }
+  },
+  "tegrastats": {
+    "samples": 51,
+    "ram_mb": {
+      "mean": 5147.686274509804,
+      "max": 5420.0
+    },
+    "gpu_util_pct": {
+      "mean": 0.9411764705882353,
+      "max": 26.0
+    },
+    "power_vdd_in_mw": {
+      "mean": 8573.078431372549,
+      "max": 8974.0
+    }
+  },
+  "warmup": 20,
+  "runs": 200
+}

@@ -10,6 +10,7 @@ import argparse
 import json
 import os
 import signal
+import socket
 import sys
 import threading
 import time
@@ -30,6 +31,23 @@ def _append_cycle_log(path: str, result: dict) -> None:
             "events": result["events"]}
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(line, ensure_ascii=False) + "\n")
+
+
+def sd_notify(msg: str) -> bool:
+    """systemd에 상태를 알린다(READY=1, WATCHDOG=1). systemd 밖(NOTIFY_SOCKET 없음)에서는 아무것도 안 한다.
+    주기마다 WATCHDOG=1을 보내고, 주기가 멈춰 WatchdogSec 동안 안 오면 systemd가 죽이고 다시 띄운다.
+    2026-10-22 09:07 서비스가 죽지 않고 멈춰 Restart=always가 동작하지 않았다(decisions R11)."""
+    addr = os.environ.get("NOTIFY_SOCKET")
+    if not addr:
+        return False
+    if addr.startswith("@"):
+        addr = "\0" + addr[1:]                # 추상 네임스페이스 소켓
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as s:
+            s.sendto(msg.encode(), addr)
+        return True
+    except OSError:
+        return False
 
 
 def cmd_once(args) -> int:
@@ -60,6 +78,7 @@ def cmd_run(args) -> int:
     interval, offset = cfg["service"]["interval_s"], cfg["service"]["offset_s"]
     cycle_log = os.path.expanduser(cfg["service"]["cycle_log"])
     log("INFO", "service_start", pid=os.getpid(), interval_s=interval)
+    sd_notify("READY=1")
     while not stop.is_set():
         now = time.time()
         nxt = (now // interval + 1) * interval + offset     # 벽시계 매분 offset초에 맞춘다
@@ -76,6 +95,7 @@ def cmd_run(args) -> int:
             svc.mark_failure(repr(e))
             log("ERROR", "cycle_failed", error=repr(e)[:300])
             traceback.print_exc(limit=3)
+        sd_notify("WATCHDOG=1")   # 실패한 주기도 "멈추지 않았다"는 신호다. 멈춤만 잡는다
     pub.close()
     if server:
         server.shutdown()

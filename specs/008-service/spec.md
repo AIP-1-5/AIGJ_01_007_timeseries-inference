@@ -26,6 +26,7 @@
 - **FR-007** 경보 중복 억제: new → 30분마다 repeat → resolved.
 - **FR-008** 주기마다 `~/data/tsinfer/service/cycles.jsonl`에 처리 시간·상태·경보를 남긴다(D-2 근거).
 - **FR-009** systemd `tsinfer-service-yj`(재부팅 자동 시작, `Restart=always`).
+- **FR-010** 멈춤 감지: 주기마다 systemd watchdog 신호, 300초 없으면 재시작(10/22 추가, R11).
 
 ## Plan
 
@@ -38,6 +39,7 @@
 - [x] T001 `service/` 패키지, 설정, `once --no-publish` 시험 주기
 - [x] T002 단위 테스트 `tests/unit/test_service.py`(전처리 동일성, fallback, 1,000ppm 분, 경보 억제, 끊김, API, 핫 리로드)
 - [x] T003 결과 형식 문서 `docs/reports/008-service/result-format.md`
-- [ ] T004 **[사용자]** `sudo deploy/install-inference-service.sh` → 12시간 가동 시작
+- [x] T004 **[사용자]** `sudo deploy/install-inference-service.sh` → 12시간 가동 시작 (10/21 17:30 설치, 10/21 18:57~10/22 09:07 14시간 10분 무중단)
+- [ ] T004b **[사용자]** watchdog 적용 재설치(R11) `sudo deploy/install-inference-service.sh`
 - [ ] T005 **[사용자]** 가동 중 `sudo systemctl stop tsinfer-collector-yj` 10분 → `start`, 경보·복구를 `cycles.jsonl`로 확인
-- [ ] T006 12시간 뒤 `cycles.jsonl` 요약(주기 처리 시간 평균·최대, 실패 수, 경보 내역) → `docs/reports/008-service/uptime.md`, 판정표
+- [x] T006 12시간 뒤 `cycles.jsonl` 요약(주기 처리 시간 평균·최대, 실패 수, 경보 내역) → `docs/reports/008-service/uptime.md`, 판정표 (AC-2는 T005 뒤 채움)

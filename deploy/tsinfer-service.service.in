@@ -7,7 +7,10 @@ Wants=network-online.target
 StartLimitIntervalSec=0
 
 [Service]
-Type=simple
+Type=notify
+NotifyAccess=main
+# 주기(60초)가 5번 연속 끝나지 않으면 멈춘 것으로 보고 죽인 뒤 다시 띄운다(decisions R11)
+WatchdogSec=300
 User=@USER@
 WorkingDirectory=@REPO@
 EnvironmentFile=@REPO@/.env
