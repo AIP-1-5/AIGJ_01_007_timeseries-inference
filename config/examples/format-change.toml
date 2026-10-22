@@ -1,0 +1,100 @@
+# D-2 형식 변경 시연용 설정. config/collector.toml 사본에 아래 두 곳만 더했다(docs/reports/001-data-collection/format-change.md).
+#  1) EM300-TH의 temperature 키가 temp로 바뀐 경우: [models.EM300-TH.keys]에 temp = "temperature"
+#  2) 새 모델 EM300-TH-v2(키 temp, humi) 추가: [models.EM300-TH-v2]
+
+# 과제 1 수집기 설정. 계약: specs/001-data-collection/contracts/config.md
+# 비밀값(MQTT 주소·계정·비밀번호)은 여기에 두지 않는다. .env에서 읽는다.
+# 바꾼 뒤에는 `python -m collector check-config`로 검사하고 서비스를 재시작한다.
+
+[mqtt]
+uplink_topic = "application/+/device/+/event/up"
+join_topic   = "application/+/device/+/event/join"   # "" 이면 구독 안 함 (research R2, decisions Q1)
+qos = 1
+clean_session = false
+client_id_prefix = "tsinfer-collector"   # 실제 id: <prefix>-<사용자>-<호스트>
+keepalive_s = 30
+reconnect_min_s = 1
+reconnect_max_s = 10
+
+[storage]
+db_path = "~/data/tsinfer/collector.db"   # decisions Q3. /srv/team5가 생기면 여기만 바꾼다
+queue_max = 50000
+heartbeat_s = 60
+
+[fcnt]                 # 근거: research R2
+reset_max = 1000       # 이 값 이하로 돌아가야 "0 근처"
+min_drop = 100         # 이만큼 이상 줄어야 "크게"
+
+[unmapped]
+policy = "store"       # "store": 키 이름 그대로 저장 + 경고 / "drop": 버리고 경고
+
+# 모델별 object 키 → 저장 항목 이름(InfluxDB measurement와 같게)
+# interval_s: 모델 기본 전송 간격(초, 커버율 보조 판정용)
+
+[models.AM107]
+interval_s = 60
+[models.AM107.keys]
+co2 = "co2"
+temperature = "temperature"
+humidity = "humidity"
+pressure = "pressure"
+tvoc = "tvoc"
+illumination = "illumination"
+infrared = "infrared"
+infrared_and_visible = "infrared_and_visible"
+activity = "activity"
+
+[models.AM103]
+interval_s = 60
+[models.AM103.keys]
+co2 = "co2"
+temperature = "temperature"
+humidity = "humidity"
+battery = "battery"
+
+[models.EM500-CO2]
+interval_s = 120
+[models.EM500-CO2.keys]
+co2 = "co2"
+temperature = "temperature"
+humidity = "humidity"
+pressure = "pressure"
+
+[models.EM320-TH]
+interval_s = 60
+[models.EM320-TH.keys]
+temperature = "temperature"
+humidity = "humidity"
+battery = "battery"
+
+[models.EM300-TH]
+interval_s = 60
+[models.EM300-TH.keys]
+temperature = "temperature"
+humidity = "humidity"
+temp = "temperature"     # 형식 변경: 새 키 이름 → 같은 항목
+
+[models.EM300-TH-v2]     # 새 모델
+interval_s = 60
+[models.EM300-TH-v2.keys]
+temp = "temperature"
+humi = "humidity"
+
+[models.WS302]
+interval_s = 60
+[models.WS302.keys]
+LAeq = "LAeq"
+LAI = "LAI"
+LAImax = "LAImax"
+battery = "battery"
+
+# 장치별 전송 간격 덮어쓰기
+[devices."24e124725d089152"]   # 회의실 AM103
+interval_s = 600
+[devices."24e124128c140101"]   # 실습실 전방 우측 AM107
+interval_s = 600
+
+[report]
+judged_items = ["co2", "temperature", "humidity"]
+coverage_target = 0.95
+gap_list_min_minutes = 3

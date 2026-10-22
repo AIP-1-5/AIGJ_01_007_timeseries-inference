@@ -1,0 +1,23 @@
+# 과제 1 수집기 systemd 유닛 틀. deploy/install-service.sh가 @USER@, @REPO@를 채워
+# /etc/systemd/system/tsinfer-collector-@USER@.service 로 설치한다. research R7.
+[Unit]
+Description=tsinfer collector (assignment 1, @USER@)
+After=network-online.target
+Wants=network-online.target
+# 재시작 횟수 제한을 끈다: 브로커·네트워크가 오래 죽어 있어도 계속 다시 시도한다
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=@USER@
+WorkingDirectory=@REPO@
+EnvironmentFile=@REPO@/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=@REPO@/.venv/bin/python -m collector run --config @REPO@/config/collector.toml
+Restart=always
+RestartSec=5
+# SIGTERM 뒤 큐를 비우고 끝낼 시간
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

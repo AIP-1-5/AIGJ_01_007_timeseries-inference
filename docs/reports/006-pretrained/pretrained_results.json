@@ -1,0 +1,38 @@
+{
+  "model": "amazon/chronos-bolt-small",
+  "context_steps": 512,
+  "device": "cpu",
+  "load_s": 61.9724338054657,
+  "rows": [
+    {
+      "location": "실습실",
+      "n": 800,
+      "persistence": 55.78054761904761,
+      "gru": 43.93081089165097,
+      "chronos": 45.16731494758242,
+      "interval_coverage": 0.78625
+    },
+    {
+      "location": "사무실",
+      "n": 800,
+      "persistence": 54.67276041666667,
+      "gru": 40.843354832240514,
+      "chronos": 50.89291572498139,
+      "interval_coverage": 0.7525
+    },
+    {
+      "location": "회의실",
+      "n": 800,
+      "persistence": 99.033125,
+      "gru": 74.29052661895751,
+      "chronos": 95.00934131622314,
+      "interval_coverage": 0.7825
+    }
+  ],
+  "latency_ms_mean": 543.9488498705674,
+  "latency_ms_p95": 666.901254800905,
+  "latency_runs": 85,
+  "peak_rss_mb": 1231.9765625,
+  "rss_before_mb": 912.1953125,
+  "params_m": 47.718016
+}

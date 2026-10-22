@@ -1,0 +1,91 @@
+# 과제 1 수집기 설정. 계약: specs/001-data-collection/contracts/config.md
+# 비밀값(MQTT 주소·계정·비밀번호)은 여기에 두지 않는다. .env에서 읽는다.
+# 바꾼 뒤에는 `python -m collector check-config`로 검사하고 서비스를 재시작한다.
+
+[mqtt]
+uplink_topic = "application/+/device/+/event/up"
+join_topic   = "application/+/device/+/event/join"   # "" 이면 구독 안 함 (research R2, decisions Q1)
+qos = 1
+clean_session = false
+client_id_prefix = "tsinfer-collector"   # 실제 id: <prefix>-<사용자>-<호스트>
+keepalive_s = 30
+reconnect_min_s = 1
+reconnect_max_s = 10
+
+[storage]
+db_path = "~/data/tsinfer/collector.db"   # decisions Q3. /srv/team5가 생기면 여기만 바꾼다
+queue_max = 50000
+heartbeat_s = 60
+
+[fcnt]                 # 근거: research R2
+reset_max = 1000       # 이 값 이하로 돌아가야 "0 근처"
+min_drop = 100         # 이만큼 이상 줄어야 "크게"
+
+[unmapped]
+policy = "store"       # "store": 키 이름 그대로 저장 + 경고 / "drop": 버리고 경고
+
+# 모델별 object 키 → 저장 항목 이름(InfluxDB measurement와 같게)
+# interval_s: 모델 기본 전송 간격(초, 커버율 보조 판정용)
+
+[models.AM107]
+interval_s = 60
+[models.AM107.keys]
+co2 = "co2"
+temperature = "temperature"
+humidity = "humidity"
+pressure = "pressure"
+tvoc = "tvoc"
+illumination = "illumination"
+infrared = "infrared"
+infrared_and_visible = "infrared_and_visible"
+activity = "activity"
+
+[models.AM103]
+interval_s = 60
+[models.AM103.keys]
+co2 = "co2"
+temperature = "temperature"
+humidity = "humidity"
+battery = "battery"
+
+[models.EM500-CO2]
+interval_s = 120
+[models.EM500-CO2.keys]
+co2 = "co2"
+temperature = "temperature"
+humidity = "humidity"
+pressure = "pressure"
+
+[models.EM320-TH]
+interval_s = 60
+[models.EM320-TH.keys]
+temperature = "temperature"
+humidity = "humidity"
+battery = "battery"
+
+[models.EM300-TH]
+interval_s = 60
+[models.EM300-TH.keys]
+temperature = "temperature"
+humidity = "humidity"
+
+[models.WS302]
+interval_s = 60
+[models.WS302.keys]
+LAeq = "LAeq"
+LAI = "LAI"
+LAImax = "LAImax"
+battery = "battery"
+
+# 장치별 전송 간격 덮어쓰기
+[devices."24e124725d089152"]   # 회의실 AM103
+interval_s = 600
+[devices."24e124128c140101"]   # 실습실 전방 우측 AM107
+interval_s = 600
+[devices."24e124136d151523"]   # 실습실 EM300-TH. fCnt 기준 관측 600초(2026-10-21, decisions R8e)
+interval_s = 600
+
+[report]
+judged_items = ["co2", "temperature", "humidity"]
+coverage_target = 0.95
+gap_list_min_minutes = 3

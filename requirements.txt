@@ -1,0 +1,4 @@
+paho-mqtt>=2,<3
+pandas>=3,<4
+pyarrow>=20
+matplotlib>=3.9

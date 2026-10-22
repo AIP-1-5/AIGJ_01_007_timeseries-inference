@@ -1,0 +1,60 @@
+# 과제 2~8 공용 전처리 설정. 근거: specs/002-data-baseline/research.md
+# 바꾸면 결과가 바뀐다. 결과 파일에 이 파일의 해시가 남는다.
+
+[data]
+snapshot_dir = "~/data/tsinfer/influx"     # tsdata.influx 스냅샷 (R1)
+out_dir = "~/data/tsinfer/prep"            # 공간 시계열·파라미터·평가 시점
+items = ["co2", "temperature", "humidity"]
+spaces = ["실습실", "사무실", "회의실", "사무실 밖"]   # 그 밖(lab, 강의실, 창고, 태그 없음)은 제외 (R2)
+timezone = "Asia/Seoul"                    # 날짜 경계·시간대 패턴 기준
+
+# 정제 규칙 (R2). min~max 밖, drop_values와 같은 값은 제거한다
+[clean.co2]
+min = 300
+max = 10000
+drop_values = []
+[clean.temperature]
+min = -30
+max = 50
+drop_values = [-0.1]      # 습도 127.5와 짝으로 나오는 오류 프레임
+[clean.humidity]
+min = 0
+max = 100
+drop_values = []
+
+[resample]                # (R3)
+interval_min = 5
+space_aggregate = "median"
+
+[gaps]                    # (R4)
+max_fill_steps = 3        # 연속 3칸(15분) 이하만 선형 보간
+
+[periods]                 # (R5) KST 날짜, 끝 날짜 포함
+train = ["2025-09-01", "2026-06-30"]
+val = ["2026-07-01", "2026-08-31"]
+test = ["2026-09-01", "2026-10-20"]
+
+[baseline]                # (R7)
+targets = ["co2", "temperature"]
+spaces = ["실습실", "사무실", "회의실"]
+horizons_min = [5, 15, 30, 60]
+mean_window_min = 60
+mean_min_observed = 6     # 1시간 평균은 12칸 중 관측 6칸 이상일 때만
+
+[schedule]                # (R8) 일정 자료 받기 전 가정. 받으면 여기만 바꾼다
+source = "가정: 학습 기간 평일 실습실 CO2 중앙값 곡선(08:30 상승, 12:30 최저, 18:00 이후 하락)에서 추정. 10/22 일정 자료 확인 대기"
+space = "실습실"
+class_start = "09:00"
+lunch_start = "12:00"
+lunch_end = "13:00"
+class_end = "18:00"
+rise_ppm = 100            # 아침 기준값(05~07시 중앙값) + 이만큼 넘으면 "상승"
+deviation_min = 60        # 일정과 이 이상 어긋나면 "어긋난 날"
+
+[calendar]                # 미리 알 수 있는 정보(과제 3 일정 특성). 공휴일·대체공휴일, KST 날짜
+# 근거: 관공서 공휴일. 2026-05-01은 노동절 공휴일 추정(데이터에서도 CO2 상승 없음)
+holidays = [
+  "2025-10-03", "2025-10-05", "2025-10-06", "2025-10-07", "2025-10-08", "2025-10-09", "2025-12-25",
+  "2026-01-01", "2026-02-16", "2026-02-17", "2026-02-18", "2026-03-02", "2026-05-01", "2026-05-05",
+  "2026-05-25", "2026-06-03", "2026-08-17", "2026-09-24", "2026-09-25", "2026-10-05", "2026-10-09",
+]
