@@ -16,6 +16,7 @@ import pandas as pd
 
 from . import diagnose as dg
 from .baselines import LABELS, best_table, evaluate
+from .guard import refuse_on_board
 from .prep import REPO, build, load_config
 
 REPORT_DIR = REPO / "docs" / "reports" / "002-data-baseline"
@@ -187,6 +188,7 @@ def main(argv=None) -> int:
     p.add_argument("command", choices=["prep", "baseline", "diagnose", "all"])
     p.add_argument("--config", default=str(REPO / "config" / "prep.toml"))
     a = p.parse_args(argv)
+    refuse_on_board(f"1년치 전처리·분석(tsdata {a.command})")
     cfg = load_config(a.config)
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     steps = {"prep": [cmd_prep], "baseline": [cmd_baseline], "diagnose": [cmd_diagnose],

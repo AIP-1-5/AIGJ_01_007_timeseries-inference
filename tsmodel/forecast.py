@@ -19,7 +19,8 @@ import torch
 from torch import nn
 
 from tsdata.prep import PrepConfig, period_of
-from tsmodel.features import device, time_features
+from tsdata.guard import train_device
+from tsmodel.features import time_features
 
 ITEMS = ["co2", "temperature", "humidity"]
 TARGETS = ["co2", "temperature"]
@@ -137,10 +138,6 @@ def make_dataset(series: pd.DataFrame, normalizer: dict, cfg: PrepConfig, schedu
 
 # --- 학습 ----------------------------------------------------------------------
 
-def _device() -> torch.device:
-    return device()
-
-
 def predict(model: ForecastGRU, seq: np.ndarray, static: np.ndarray, batch: int = 4096) -> np.ndarray:
     dev = next(model.parameters()).device
     model.eval()
@@ -173,7 +170,7 @@ def train(ds: dict, normalizer: dict, epochs: int = 20, patience: int = 4, seed:
           batch: int = 512, log=print) -> tuple[ForecastGRU, list[dict]]:
     torch.manual_seed(seed)
     np.random.seed(seed)
-    dev = _device()
+    dev = train_device()
     tr, va = ds["train"], ds["val"]
     model = ForecastGRU(tr["seq"].shape[2], tr["static"].shape[1]).to(dev)
     opt = torch.optim.Adam(model.parameters(), lr=lr)
@@ -210,7 +207,7 @@ def train(ds: dict, normalizer: dict, epochs: int = 20, patience: int = 4, seed:
 
 def save(model: ForecastGRU, path: str, meta: dict) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    torch.save({"state_dict": model.state_dict(), "meta": meta}, path)
+    torch.save({"state_dict": {k: t.cpu() for k, t in model.state_dict().items()}, "meta": meta}, path)
     with open(path.replace(".pt", ".json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 

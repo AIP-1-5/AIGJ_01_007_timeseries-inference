@@ -14,9 +14,12 @@ import pandas as pd
 
 from tsdata.__main__ import conditions
 from tsdata.baselines import LABELS
+from tsdata.guard import refuse_on_board, require_free_memory
 from tsdata.prep import REPO, load_config
 
 MODEL_DIR = os.path.expanduser("~/data/tsinfer/models")
+TRAIN_COMMANDS = {"forecast", "anomaly", "state"}   # 맥 전용. pretrained·edge는 보드 측정용
+BOARD_MIN_FREE_MB = {"pretrained": 2500, "edge": 3000}   # 측정 시작 전 남아 있어야 할 메모리(10/21 최대 사용량 + 여유)
 ITEM_NAMES = {"co2": "CO₂", "temperature": "온도"}
 
 
@@ -92,7 +95,7 @@ def write_table(cfg, perf: pd.DataFrame, rep) -> None:
 def _save(model, path, meta):
     import torch
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    torch.save({"state_dict": model.state_dict(), "meta": meta}, path)
+    torch.save({"state_dict": {k: t.cpu() for k, t in model.state_dict().items()}, "meta": meta}, path)
     with open(path.replace(".pt", ".json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2, default=str)
 
@@ -322,6 +325,10 @@ def main(argv=None) -> int:
     p.add_argument("--epochs", type=int, default=20)
     p.add_argument("--config", default=str(REPO / "config" / "prep.toml"))
     a = p.parse_args(argv)
+    if a.command in TRAIN_COMMANDS:
+        refuse_on_board(f"모델 학습(tsmodel {a.command})")
+    if a.command in BOARD_MIN_FREE_MB:
+        require_free_memory(BOARD_MIN_FREE_MB[a.command], f"tsmodel {a.command}")
     cfg = load_config(a.config)
     if a.command == "forecast":
         cmd_forecast(cfg, a.epochs)

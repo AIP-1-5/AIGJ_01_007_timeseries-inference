@@ -12,7 +12,8 @@ import torch
 from torch import nn
 
 from tsdata.prep import PrepConfig, period_of
-from tsmodel.features import device, time_features
+from tsdata.guard import train_device
+from tsmodel.features import time_features
 
 ITEMS = ["co2", "temperature", "humidity"]
 WIN = 12                     # 1시간 창
@@ -123,7 +124,7 @@ class AutoEncoder(nn.Module):
 
 def train_ae(x: np.ndarray, epochs: int = 15, seed: int = 0, log=print) -> AutoEncoder:
     torch.manual_seed(seed)
-    dev = device()
+    dev = train_device()
     x = x[~np.isnan(x).any(axis=1)]
     model = AutoEncoder().to(dev)
     opt = torch.optim.Adam(model.parameters(), lr=1e-3)

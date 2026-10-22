@@ -24,10 +24,11 @@
 
 | | 보드 A | 보드 B | 맥 |
 |---|---|---|---|
-| 역할 | 운영: 수집기, 제출 서비스(24시간) | 실험: 학습, 변환, 측정 | 코드 작성, 가벼운 분석·학습 |
+| 역할 | 운영: 수집기, 제출 서비스(24시간) | 수집기 시험, InfluxDB 내려받기, TensorRT 변환·측정 | 코드 작성, **모델 학습(MPS)·1년치 분석 전부** |
 | 접속 | `ssh board-a` (Tailscale) | `ssh board-b` (Tailscale) | — |
 | 규칙 | 실험·재부팅 금지, pull로 배포만 | 무거운 작업 전 팀에 알림 | — |
 
+- **모델 학습과 무거운 분석은 맥 GPU(MPS)에서만 한다.** 보드에서 `python -m tsmodel forecast|anomaly|state`, `python -m tsdata ...`를 실행하면 `tsdata/guard.py`가 데이터를 읽기 전에 멈춘다. 우회하지 않는다(2026-10-21 보드 B 메모리 98% → 재부팅).
 - Jetson Orin Nano Super 8GB(CPU·GPU 메모리 공유), JetPack 7.2.1, Ubuntu 24.04, 전원 모드 MAXN SUPER.
 - 공용 큰 파일(데이터, DB, 모델 파일)은 보드의 `/srv/team5`. 개인 작업은 자기 계정·자기 폴더에서만 한다.
 - InfluxDB는 교육장 내부망 주소라 교육장 네트워크에 있는 보드에서만 접속된다.

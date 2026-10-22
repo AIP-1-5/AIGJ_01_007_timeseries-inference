@@ -16,6 +16,7 @@ import numpy as np
 import torch
 
 MODEL_DIR = os.path.expanduser("~/data/tsinfer/models")
+TRT_WORKSPACE_MB = 256
 WARMUP, RUNS = 20, 200
 
 
@@ -71,6 +72,8 @@ def _trt_engine(onnx_path: str, shapes: dict):
         if not parser.parse(f.read()):
             raise RuntimeError(str(parser.get_error(0)))
     conf = builder.create_builder_config()
+    # 빌드 작업 메모리 상한. 상한이 없으면 빌더가 남은 메모리를 크게 잡는다(10/21 18:49 보드 메모리 98% → 재부팅, 추정)
+    conf.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, TRT_WORKSPACE_MB << 20)
     if hasattr(trt.BuilderFlag, "FP16"):
         conf.set_flag(trt.BuilderFlag.FP16)
     prof = builder.create_optimization_profile()

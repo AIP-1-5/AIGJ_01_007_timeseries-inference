@@ -14,7 +14,8 @@ import torch
 from torch import nn
 
 from tsdata.prep import PrepConfig
-from tsmodel.features import device, SCHEDULE_FEATURES, TIME_FEATURES, time_features
+from tsdata.guard import train_device
+from tsmodel.features import SCHEDULE_FEATURES, TIME_FEATURES, time_features
 
 LIMIT = 1000.0
 AHEAD = 6           # 30분
@@ -69,10 +70,10 @@ class MLP(nn.Module):
 
 def train_mlp(x: np.ndarray, y: np.ndarray, epochs: int = 10, seed: int = 0, log=print) -> MLP:
     torch.manual_seed(seed)
-    dev = device()
+    dev = train_device()
     model = MLP(x.shape[1]).to(dev)
     pos = max(y.mean(), 1e-4)
-    lossf = nn.BCEWithLogitsLoss(pos_weight=torch.tensor((1 - pos) / pos, device=dev))   # 불균형 보정
+    lossf = nn.BCEWithLogitsLoss(pos_weight=torch.tensor((1 - pos) / pos, dtype=torch.float32, device=dev))   # 불균형 보정
     opt = torch.optim.Adam(model.parameters(), lr=1e-3)
     xt, yt = torch.from_numpy(x.astype(np.float32)), torch.from_numpy(y.astype(np.float32))
     for ep in range(epochs):
