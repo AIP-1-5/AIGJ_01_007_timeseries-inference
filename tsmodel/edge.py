@@ -53,16 +53,26 @@ def _time(fn) -> dict:
 
 
 def _trt_engine(onnx_path: str, shapes: dict):
+    """FP16 엔진. TensorRT 11에는 BuilderFlag.FP16이 없어(정밀도 = 네트워크 타입) ONNX를 FP16으로 바꿔
+    strongly typed 네트워크로 빌드한다. 입출력은 FP32로 둔다(keep_io_types)."""
+    import onnx
     import tensorrt as trt
+    from onnxconverter_common import float16
+
+    fp16_path = onnx_path.replace(".onnx", "_fp16.onnx")
+    onnx.save(float16.convert_float_to_float16(onnx.load(onnx_path), keep_io_types=True), fp16_path)
     logger = trt.Logger(trt.Logger.WARNING)
     builder = trt.Builder(logger)
-    net = builder.create_network(0)
+    flags = 1 << int(trt.NetworkDefinitionCreationFlag.STRONGLY_TYPED) \
+        if hasattr(trt.NetworkDefinitionCreationFlag, "STRONGLY_TYPED") else 0
+    net = builder.create_network(flags)
     parser = trt.OnnxParser(net, logger)
-    with open(onnx_path, "rb") as f:
+    with open(fp16_path, "rb") as f:
         if not parser.parse(f.read()):
             raise RuntimeError(str(parser.get_error(0)))
     conf = builder.create_builder_config()
-    conf.set_flag(trt.BuilderFlag.FP16)
+    if hasattr(trt.BuilderFlag, "FP16"):
+        conf.set_flag(trt.BuilderFlag.FP16)
     prof = builder.create_optimization_profile()
     for n, shp in shapes.items():
         prof.set_shape(n, (1,) + shp, (4,) + shp, (4,) + shp)
