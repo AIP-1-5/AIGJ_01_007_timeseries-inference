@@ -40,6 +40,6 @@
 - [x] T002 단위 테스트 `tests/unit/test_service.py`(전처리 동일성, fallback, 1,000ppm 분, 경보 억제, 끊김, API, 핫 리로드)
 - [x] T003 결과 형식 문서 `docs/reports/008-service/result-format.md`
 - [x] T004 **[사용자]** `sudo deploy/install-inference-service.sh` → 12시간 가동 시작 (10/21 17:30 설치, 10/21 18:57~10/22 09:07 14시간 10분 무중단)
-- [ ] T004b **[사용자]** watchdog 적용 재설치(R11) `sudo deploy/install-inference-service.sh`
-- [ ] T005 **[사용자]** 가동 중 `sudo systemctl stop tsinfer-collector-yj` 10분 → `start`, 경보·복구를 `cycles.jsonl`로 확인
+- [x] T004b **[사용자]** watchdog 적용 재설치(R11) `sudo deploy/install-inference-service.sh`
+- [x] T005 **[사용자]** 가동 중 `sudo systemctl stop tsinfer-collector-yj` 10분 → `start`, 경보·복구를 `cycles.jsonl`로 확인
 - [x] T006 12시간 뒤 `cycles.jsonl` 요약(주기 처리 시간 평균·최대, 실패 수, 경보 내역) → `docs/reports/008-service/uptime.md`, 판정표 (AC-2는 T005 뒤 채움)

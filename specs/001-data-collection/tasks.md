@@ -85,7 +85,7 @@ description: "과제 1 데이터 수집 체계 구현 작업 목록"
 - [ ] ~~T027~~ (범위 밖, 2026-10-21. 명령은 quickstart 4b, uid yj만 차단) `tests/broker/block_1883.sh SEC`를 만든다: `sudo iptables -I OUTPUT -p tcp --dport 1883 -j REJECT` → SEC초 대기 → 같은 규칙 삭제(`trap`으로 중단 시에도 삭제) → 해제 시각과 운영 DB의 다음 `received_at` 차이를 출력한다. 와이파이 전체를 끊지 않는다(Tailscale SSH 유지)
 - [x] T028 [US2] **[사용자]** 보드 B에서 서비스를 설치하고(`sudo deploy/install-service.sh`) `sudo systemctl kill -s KILL tsinfer-collector-yj`로 자동 재시작을 확인한다
 - [ ] T029 [US2] **[사용자]** AC-1 시험(quickstart 4a·4b 명령, iptables는 `-m owner --uid-owner yj`): `sudo apt install mosquitto` 뒤 quickstart 4a(재시작 3회)와 4b(120초 차단)를 실행하고, 회차별 초를 `docs/reports/001-data-collection/fault-tests.md`에 측정 조건(보드, 전력 모드, 날짜, 커밋)과 함께 기록한다. 60초 이상인 회차가 있으면 원인과 함께 미통과로 적는다
-- [ ] T030 [US2] **[사용자]** AC-2 시험: 팀에 알린 뒤 **보드 B만** `sudo reboot`를 하고 로그인 없이 대기한다. `journalctl -b -u tsinfer-collector-yj`의 시작 시각, 부팅 시각, DB의 첫 새 행 시각을 `docs/reports/001-data-collection/fault-tests.md`에 기록한다
+- [x] T030 (계획 재부팅 대신 실제 재부팅 2번으로 확인) [US2] **[사용자]** AC-2 시험: 팀에 알린 뒤 **보드 B만** `sudo reboot`를 하고 로그인 없이 대기한다. `journalctl -b -u tsinfer-collector-yj`의 시작 시각, 부팅 시각, DB의 첫 새 행 시각을 `docs/reports/001-data-collection/fault-tests.md`에 기록한다
 
 **Checkpoint**: AC-1·AC-2 판정 숫자가 기록됨
 
@@ -101,7 +101,7 @@ description: "과제 1 데이터 수집 체계 구현 작업 목록"
 - [x] T032 [US3] `collector/coverage.py`를 구현한다: 읽기 전용 연결로 `coverage_by_location_item(start, end)`, `device_rates(start, end)`(관측 간격 중앙값 포함, 설정 interval_s 우선), `gaps(start, end)`(원인과 근거 문자열), `collector_downtime(start, end)`(heartbeat·start·stop·disconnect·connect 이벤트로 계산)를 만든다. 1분 칸은 `substr(measured_at,1,16)`으로 한다(research R8)
 - [x] T033 [US3] `collector/report.py`와 `__main__.py`에 `status` 명령을 구현한다(contracts/cli.md 출력 형식, `--hours`, `--json`, 수집기 마지막 heartbeat·연결, 끊김 경고)
 - [x] T034 [US3] `collector/report.py`와 `__main__.py`에 `report` 명령을 구현한다: contracts/cli.md의 보고서 구성 1~6을 Markdown으로 쓴다. 측정 조건(기간, 실데이터, 보드 hostname, 서비스 이름, 시각 기준 nsTime, `git rev-parse HEAD`, 설정 파일 해시), `report.judged_items`(co2·temperature·humidity)의 95% 판정, 회의실처럼 간격이 긴 센서만 있는 공간·항목에는 "간격 기준 커버율·수신률 병기, 판정 기준 10/22 확인 대기" 주석을 단다(2026-10-21 변경: 간격 기준 커버율로 판정, decisions Q2b). "해석" 절은 빈 틀로 둔다
-- [ ] T035 [US3] 서비스가 24시간 이상 돈 뒤 `report`로 `docs/reports/001-data-collection/coverage-<날짜>.md`를 만든다. 95% 미만 공간·항목과 결측 구간마다 원인을 확인해 해석 절에 쓴다(왜 그렇게 나왔는가, 무엇을 해야 하는가). "생각해 볼 점" 두 질문(측정 시각 기준, 수집·학습 동시 접근)에 research R1·R5를 근거로 답한다
+- [x] T035 [US3] 서비스가 24시간 이상 돈 뒤 `report`로 `docs/reports/001-data-collection/coverage-<날짜>.md`를 만든다. 95% 미만 공간·항목과 결측 구간마다 원인을 확인해 해석 절에 쓴다(왜 그렇게 나왔는가, 무엇을 해야 하는가). "생각해 볼 점" 두 질문(측정 시각 기준, 수집·학습 동시 접근)에 research R1·R5를 근거로 답한다
 
 **Checkpoint**: AC-3 판정 숫자와 D-1 보고서가 있음
 
