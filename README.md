@@ -2,6 +2,27 @@
 
 교육장 센서(CO₂·온도·습도) 데이터로 60분 예측, 이상 탐지, 사용 여부 추정을 하고 Jetson Orin Nano에서 상시 추론 서비스로 운영하는 과제 저장소.
 
+## 진행 상황 (2026-10-22)
+
+결과 보고서 묶음: [docs/reports/final-report.md](docs/reports/final-report.md) · 일정과 현재 위치: [docs/roadmap.md](docs/roadmap.md) · 결정 기록: [docs/decisions.md](docs/decisions.md) · 학습 노트: [docs/study/](docs/study/)
+
+| 과제 | 결과 | 판정 |
+|---|---|---|
+| 1 데이터 수집 | [001-data-collection](docs/reports/001-data-collection/README.md) | 서비스 가동 중, 24시간 커버율·장애 시험 10/22 마무리 |
+| 2 데이터 이해·기준선 | [002-data-baseline](docs/reports/002-data-baseline/README.md) | 통과 (최강 기준선 = 현재값 유지) |
+| 3 60분 예측 | [003-forecast-60min](docs/reports/003-forecast-60min/README.md) | 30% 기준 미통과(−29/−22/−20%), 온도 통과 |
+| 4 이상 탐지 | [004-anomaly](docs/reports/004-anomaly/README.md) | 탐지율 80% 통과, 헛경보 1.36회/일 미통과 |
+| 5 상태 추정 | [005-state](docs/reports/005-state/README.md) | 환기 경보 통과, 사용 여부는 직접 관찰 없음 |
+| 6 사전학습 모델 | [006-pretrained](docs/reports/006-pretrained/README.md) | 통과 (Chronos-Bolt 채택 안 함) |
+| 7 엣지 최적화 | [007-edge](docs/reports/007-edge/README.md) | ONNX Runtime 통과, TensorRT FP16 미측정 |
+| 8 상시 서비스 | [008-service](docs/reports/008-service/uptime.md) | 14시간 10분 무중단 통과, 수집기 중지 시험 10/22 |
+
+## 브랜치
+
+- **`main`이 제출본이다.** 단계가 끝날 때마다 작업 브랜치를 PR로 `main`에 합친다.
+- 작업 브랜치는 Spec Kit이 과제 번호로 만든다(`001-data-collection`, `002-data-baseline`). 과제 3~8은 시간 때문에 `002-data-baseline`에서 이어서 했다. 합친 뒤에도 브랜치는 기록으로 남긴다.
+- 학습은 맥(MPS)에서만, 코드 수정은 보드 B에서 한다. 보드 A는 `main`을 `git pull`만 한다.
+
 ## 구성
 
 | 경로 | 내용 |
