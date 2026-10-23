@@ -83,18 +83,19 @@ sqlite3 -readonly ~/data/tsinfer/test-local.db "SELECT min(received_at) FROM rea
 
 **4b. 실제 브로커 경로 차단 — 내 계정(uid yj)만**. 팀원 수집기(`collector-jaeung`, `ts-collector`)가 같은 보드에서 돌기 때문에 보드 전체의 1883을 막지 않는다.
 
+4a·4b는 `bash deploy/fault-test-t029.sh`(4b만: 인자 `4b`)로 한 번에 실행한다. 4b 차단 부분은 아래와 같다.
+
 ```bash
-RULE="OUTPUT -p tcp --dport 1883 -m owner --uid-owner yj -j REJECT --reject-with tcp-reset"
-sudo iptables -I $RULE; date -u +%FT%TZ        # 차단 시작
+sudo nft add table inet t029
+sudo nft add chain inet t029 out '{ type filter hook output priority 0 ; }'
+sudo nft add rule inet t029 out meta skuid "$(id -u yj)" tcp dport 1883 drop
 sleep 120
-sudo iptables -D $RULE; date -u +%FT%TZ        # 해제 시각 = <T>
-sudo iptables -S OUTPUT | grep 1883 || echo "규칙 없음(정상)"
+sudo nft delete table inet t029; date -u +%FT%TZ   # 해제 시각 = <T>
 sqlite3 -readonly ~/data/tsinfer/collector.db "SELECT min(received_at) FROM readings WHERE received_at > '<T>';"
-journalctl -u tsinfer-collector-yj --since "-5 min" --no-pager | grep -E "disconnect|connect|subscribe"
 ```
 
-- `-m owner --uid-owner yj`: uid yj 프로세스가 보낸 패킷만 막는다. 서비스가 `User=yj`로 돌아서 걸린다. Tailscale SSH는 22·41641 포트라 영향 없다.
-- 중간에 끊겼으면 규칙이 남을 수 있다. 위 `iptables -S` 확인을 꼭 한다.
+- Jetson 커널에 iptables owner 매치(`xt_owner`)와 nft reject가 없어 `iptables -m owner ... REJECT`는 실패한다(10/23 확인). nft `meta skuid`는 nf_tables 기본 기능이라 된다. reject 대신 drop이라 수집기는 keepalive 만료(약 45~60초)로 끊김을 안다.
+- 시험 전용 테이블 `t029`를 지우면 규칙도 같이 지워진다. 스크립트는 종료할 때 항상 지운다.
 
 기대: 해제 후 첫 센서 메시지가 오는 즉시 저장된다. 판정은 "해제 후 60초 안 새 행"이다. 로그에 `disconnect`/`connect`/`subscribe`가 남는다.
 

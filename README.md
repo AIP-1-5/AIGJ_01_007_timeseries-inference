@@ -8,7 +8,7 @@
 
 | 과제 | 결과 | 판정 |
 |---|---|---|
-| 1 데이터 수집 | [001-data-collection](docs/reports/001-data-collection/README.md) | 24시간 커버율 통과(98% 이상), 재부팅 자동 재개 통과. 브로커 재시작 시험만 대기 |
+| 1 데이터 수집 | [001-data-collection](docs/reports/001-data-collection/README.md) | 24시간 커버율 통과(98% 이상), 재부팅 자동 재개 통과, 브로커 재시작·차단 후 재개 통과(4.8~20.8초) |
 | 2 데이터 이해·기준선 | [002-data-baseline](docs/reports/002-data-baseline/README.md) | 통과 (최강 기준선 = 현재값 유지) |
 | 3 60분 예측 | [003-forecast-60min](docs/reports/003-forecast-60min/README.md) | 30% 기준 미통과(−29/−22/−20%), 온도 통과 |
 | 4 이상 탐지 | [004-anomaly](docs/reports/004-anomaly/README.md) | 탐지율 80% 통과, 헛경보 1.36회/일 미통과 |
