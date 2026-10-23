@@ -57,7 +57,7 @@ $ git diff --stat af757c9 -- collector/parser.py collector/writer.py collector/s
 
 1. `config/collector.toml`에 매핑을 추가한다.
 2. `.venv/bin/python -m collector check-config` → "설정 정상"이 나와야 한다(오류면 종료 코드 2, 서비스를 재시작하지 않는다).
-3. `sudo systemctl restart tsinfer-collector-yj` (사용자 실행). 재시작하는 몇 초 동안 온 메시지는 브로커가 보관했다가 넘겨준다(QoS 1, `clean_session=False`).
+3. `sudo systemctl restart tsinfer-collector-yj` (사용자 실행). 재시작하는 몇 초 동안 온 메시지는 잃을 수 있다(브로커가 끊긴 동안의 메시지를 보관하지 않음, fault-tests.md AC-1). 센서 간격이 1분이라 보통 0~1건이다(추정).
 4. `python -m collector status --hours 1`에서 `temperature`가 다시 늘어나는지, `journalctl -u tsinfer-collector-yj`에 `unmapped_key`가 더 나오지 않는지 확인한다.
 5. 매핑 전에 키 이름 그대로 저장된 행은 한 번에 고칠 수 있다(필요할 때만, 사용자 승인 뒤):
    `UPDATE readings SET item = 'temperature' WHERE model = 'EM300-TH' AND item = 'temp';`

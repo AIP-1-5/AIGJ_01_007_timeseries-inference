@@ -84,7 +84,7 @@ description: "과제 1 데이터 수집 체계 구현 작업 목록"
 - [ ] ~~T026~~ (범위 밖, 2026-10-21) 로컬 브로커 시험 도구를 만든다: `tests/broker/collector-local.toml`(localhost:1883, 시험용 DB `~/data/tsinfer/test-local.db`), `tests/broker/publisher.py`(fixture 메시지를 5초마다 fCnt +1, nsTime=현재 시각으로 바꿔 `application/test/device/<devEui>/event/up`에 발행, 브로커가 꺼져 있으면 재시도), `tests/broker/restart_test.sh N`(N회 `sudo systemctl stop mosquitto` → 30초 → `start`, start 시각과 시험 DB의 다음 `received_at` 차이를 초로 출력)
 - [ ] ~~T027~~ (범위 밖, 2026-10-21. 명령은 quickstart 4b, uid yj만 차단) `tests/broker/block_1883.sh SEC`를 만든다: `sudo iptables -I OUTPUT -p tcp --dport 1883 -j REJECT` → SEC초 대기 → 같은 규칙 삭제(`trap`으로 중단 시에도 삭제) → 해제 시각과 운영 DB의 다음 `received_at` 차이를 출력한다. 와이파이 전체를 끊지 않는다(Tailscale SSH 유지)
 - [x] T028 [US2] **[사용자]** 보드 B에서 서비스를 설치하고(`sudo deploy/install-service.sh`) `sudo systemctl kill -s KILL tsinfer-collector-yj`로 자동 재시작을 확인한다
-- [ ] T029 [US2] **[사용자]** AC-1 시험(quickstart 4a·4b 명령, iptables는 `-m owner --uid-owner yj`): `sudo apt install mosquitto` 뒤 quickstart 4a(재시작 3회)와 4b(120초 차단)를 실행하고, 회차별 초를 `docs/reports/001-data-collection/fault-tests.md`에 측정 조건(보드, 전력 모드, 날짜, 커밋)과 함께 기록한다. 60초 이상인 회차가 있으면 원인과 함께 미통과로 적는다
+- [x] T029 (10/23 통과, 4b는 nft로 차단) [US2] **[사용자]** AC-1 시험(quickstart 4a·4b 명령, iptables는 `-m owner --uid-owner yj`): `sudo apt install mosquitto` 뒤 quickstart 4a(재시작 3회)와 4b(120초 차단)를 실행하고, 회차별 초를 `docs/reports/001-data-collection/fault-tests.md`에 측정 조건(보드, 전력 모드, 날짜, 커밋)과 함께 기록한다. 60초 이상인 회차가 있으면 원인과 함께 미통과로 적는다
 - [x] T030 (계획 재부팅 대신 실제 재부팅 2번으로 확인) [US2] **[사용자]** AC-2 시험: 팀에 알린 뒤 **보드 B만** `sudo reboot`를 하고 로그인 없이 대기한다. `journalctl -b -u tsinfer-collector-yj`의 시작 시각, 부팅 시각, DB의 첫 새 행 시각을 `docs/reports/001-data-collection/fault-tests.md`에 기록한다
 
 **Checkpoint**: AC-1·AC-2 판정 숫자가 기록됨
