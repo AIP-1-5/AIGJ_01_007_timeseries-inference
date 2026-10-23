@@ -2,6 +2,21 @@
 
 보드 B(`team5-b`)의 `tsinfer-service-yj`가 **매분 05초**에 공간별 60분 예측·이상·상태를 계산해 MQTT로 발행하고, 같은 결과를 조회 API로 돌려준다. 이 문서만 보고 쓸 수 있게 적었다.
 
+## 0. 바로 써 보기
+
+교육장 네트워크 안에서 실행한다. `<보드 B>`는 제출물에 적은 주소다(Public 저장소라 여기에는 쓰지 않는다). MQTT 계정은 수집기와 같은 교육장 브로커 계정이다(팀 단톡방).
+
+```bash
+curl http://<보드 B>:8807/health                          # 서비스가 살아 있나 (status: ok)
+curl http://<보드 B>:8807/spaces/lab                      # 실습실 전체 결과 (2절)
+curl "http://<보드 B>:8807/spaces/meeting/forecast?minutes=30"
+# → {"space": "회의실", "minutes": 30, "co2": 576.5, "temperature": 18.75, "unit": {"co2": "ppm", "temperature": "°C"}, "model": "gru_schedule", ...}
+mosquitto_sub -h <브로커> -u <계정> -P <비밀번호> -t 'tsinfer/yj/#' -v   # 매분 결과 + 경보
+```
+
+- 대시보드: `GET /spaces`로 공간 목록을 받고 `GET /spaces/{id}`를 1분마다 부르거나, `tsinfer/yj/+`를 구독한다(retained라 접속 즉시 최신값).
+- 환기 알림: `tsinfer/yj/alerts`에서 `type`이 `co2_limit`·`vent_soon`이고 `status`가 `new`인 것만 받으면 중복 없이 한 번씩 온다.
+
 ## 1. MQTT
 
 | 토픽 | retained | 내용 |
@@ -31,16 +46,19 @@
 | `state.vent_alert` | 객체 또는 `null` | "30분 안에 1,000ppm 초과" 선제 경보. `probability`, `value` |
 | `alerts` | 배열 | 지금 켜져 있는 경보(`type`, `since`, `detail`) |
 
-예시(`tsinfer/yj/lab`, 모델 적재 전 fallback 상태, 배열 일부 생략):
+예시(`tsinfer/yj/lab`, 2026-10-23 10:09 KST 실제 출력, 배열 일부 생략):
 
 ```json
-{"space": "실습실", "space_id": "lab", "time": "2026-10-21T08:23:28Z", "data_time": "2026-10-21T08:15:00Z",
- "status": "ok", "current": {"co2": 823.6, "temperature": 23.23, "humidity": 48.25},
- "forecast": {"model": "fallback", "step_min": 5, "minutes": [5, 10, 15, "…"], "co2": [823.6, 823.6, 823.6, "…"],
-              "temperature": [23.23, 23.23, 23.23, "…"]},
+{"space": "실습실", "space_id": "lab", "time": "2026-10-23T01:09:05Z", "data_time": "2026-10-23T01:00:00Z",
+ "status": "ok", "current": {"co2": 796.0, "temperature": 24.36, "humidity": 42.4},
+ "forecast": {"model": "gru_schedule", "step_min": 5, "minutes": [5, 10, 15, "…"], "co2": [812.1, 828.3, 843.8, "…"],
+              "temperature": [24.42, 24.54, 24.62, "…"]},
  "co2_alert": {"limit": 1000, "exceeded_now": false, "minutes_to_exceed": null},
- "anomaly": {"model": "fallback", "score": null, "threshold": null, "is_anomaly": false, "cause": null, "rules": {}},
- "state": {"occupied": null, "vent_alert": null}, "alerts": []}
+ "anomaly": {"model": "autoencoder", "score": 0.002, "threshold": 7.6992, "is_anomaly": false, "cause": null,
+             "rules": {"spike": false, "stuck": false, "drift": false, "hvac": false, "vent": false}},
+ "state": {"occupied": {"model": "mlp", "probability": 0.992, "value": true},
+           "vent_alert": {"model": "mlp", "probability": 0.513, "value": false}},
+ "alerts": []}
 ```
 
 ## 3. 조회 API (`http://<보드 B>:8807`)
